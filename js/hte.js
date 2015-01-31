@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.0.0
+ *  HTML TEXT EDITOR PLUGIN 1.0.1
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -27,15 +27,21 @@ var HTE = function(elem, o) {
             toolbarClass: 'editor-toolbar',
             toolbarPosition: "before", // before or after `<textarea>` ?
             iconClassPrefix: 'fa fa-', // for `<i class="fa fa-ICON_NAME"></i>`
+            emptyElementSuffix: '>', // used to determine the end character of self-closing HTML tags
+            autoEncodeHTML: true, // encode the selected HTML string inside `<code>` element ?
             buttons: {
                 ok: 'OK',
                 yes: 'Yes',
                 no: 'No',
                 cancel: 'Cancel',
+                open: 'Open',
+                close: 'Close',
                 bold: 'Bold',
                 italic: 'Italic',
                 underline: 'Underline',
                 strike: 'Strike',
+                superscript: 'Superscript',
+                subscript: 'Subscript',
                 code: 'Code',
                 paragraph: 'Paragraph',
                 quote: 'Quote',
@@ -76,10 +82,23 @@ var HTE = function(elem, o) {
         type = type || 'modal';
         var page = doc.body;
         overlay.className = 'custom-modal-overlay custom-' + type + '-overlay';
+        overlay.onclick = base.close;
         modal.className = 'custom-modal custom-' + type;
         modal.innerHTML = '<div class="custom-modal-header custom-' + type + '-header"></div><div class="custom-modal-content custom-' + type + '-content"></div><div class="custom-modal-action custom-' + type + '-action"></div>';
+        modal.style.visibility = "hidden";
         page.appendChild(overlay);
         page.appendChild(modal);
+        win.setTimeout(function() {
+            var w = modal.offsetWidth,
+                h = modal.offsetHeight;
+            modal.style.position = 'absolute';
+            modal.style.top = '50%';
+            modal.style.left = '50%';
+            modal.style.zIndex = '9999';
+            modal.style.marginTop = '-' + (h / 2) + 'px';
+            modal.style.marginLeft = '-' + (w / 2) + 'px';
+            modal.style.visibility = "";
+        }, 10);
         if (typeof callback == "function") callback(overlay, modal);
     };
 
@@ -133,7 +152,9 @@ var HTE = function(elem, o) {
             m.children[2].appendChild(OK);
             m.children[2].appendChild(doc.createTextNode(' '));
             m.children[2].appendChild(CANCEL);
-            input.select();
+            win.setTimeout(function() {
+                input.select();
+            }, 10);
         });
     };
 
@@ -218,12 +239,12 @@ var HTE = function(elem, o) {
     base.button = function(key, data) {
         if (data.title === false) return;
         var a = doc.createElement('a');
-            a.href = '#' + key;
+            a.href = '#' + key.replace(' ', ':').replace(/[^a-z0-9\:]/gi, '-').replace(/-+/g,'-').replace(/^-+|-+$/, "");
             a.setAttribute('tabindex', -1);
             a.innerHTML = '<i class="' + opt.iconClassPrefix + key + '"></i>';
             a.onclick = function(e) {
                 data.click(e, base);
-                opt.click(e, base, key);
+                opt.click(e, base, this.hash.replace('#', ""));
                 return false;
             };
         if (data.title) a.title = data.title;
@@ -249,7 +270,7 @@ var HTE = function(elem, o) {
         if (typeof callback == "function") callback();
     };
 
-    var T = 0, btn = defaults.buttons;
+    var T = 0, btn = opt.buttons;
 
     var toolbars = {
         'bold': {
@@ -285,11 +306,36 @@ var HTE = function(elem, o) {
         'code': {
             title: btn.code,
             click: function() {
-                var v = editor.selection().value;
-                if (v.indexOf('\n') !== -1) {
-                    editor.toggle('<pre><code>', '</code></pre>');
+                var v = editor.selection().value,
+                    is_inline = v.indexOf('\n') === -1,
+                    tag_open = is_inline ? '<code>' : '<pre><code>',
+                    tag_close = is_inline ? '</code>' : '</code></pre>';
+                if (v.length > 0) {
+                    var s = editor.selection(),
+                        clean_B = s.before,
+                        clean_A = s.after,
+                        clean_V = s.value;
+                    if (clean_B.match(/(<pre(>| .*?>))?<code(>| .*?>)$/) && clean_A.match(/^<\/code>(<\/pre>)?/)) {
+                        clean_B = clean_B.replace(/(<pre(>| .*?>))?<code(>| .*?>)$/, "");
+                        clean_A = clean_A.replace(/^<\/code>(<\/pre>)?/, "");
+                        if (opt.autoEncodeHTML) {
+                            clean_V = clean_V.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                        }
+                        editor.area.value = clean_B + clean_V + clean_A;
+                        editor.select(clean_B.length, clean_B.length + clean_V.length, function() {
+                            editor.updateHistory();
+                        });
+                    } else {
+                        if (opt.autoEncodeHTML) {
+                            clean_V = clean_V.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        }
+                        editor.area.value = clean_B + tag_open + clean_V + tag_close + clean_A;
+                        editor.select(clean_B.length + tag_open.length, clean_B.length + clean_V.length + tag_open.length, function() {
+                            editor.updateHistory();
+                        });
+                    }
                 } else {
-                    editor.toggle('<code>', '</code>');
+                    editor.toggle(tag_open, tag_close);
                 }
             }
         },
@@ -298,10 +344,16 @@ var HTE = function(elem, o) {
             click: function() {
                 var v = editor.selection().value;
                 if (v.indexOf('\n') !== -1) {
-                    editor.replace(/^/, '<p>');
-                    editor.replace(/$/, '</p>')
-                    editor.replace(/\n/g, '</p>\n<p>');
-                    editor.replace(/<p><\/p>/g, "");
+                    if (/^<p>|<\/p>$/.test(v)) {
+                        editor.replace(/<p>([\s\S]*?)<\/p>/g, '$1');
+                    } else {
+                        editor.replace(/^/, '<p>');
+                        editor.replace(/$/, '</p>')
+                        editor.replace(/\n/g, '</p>\n<p>');
+                        editor.replace(/<p><\/p>/g, "");
+                        editor.replace(/<p><p>/g, '<p>');
+                        editor.replace(/<\/p><\/p>/g, '</p>');
+                    }
                 } else {
                     editor.toggle('<p>', '</p>');
                 }
@@ -316,19 +368,21 @@ var HTE = function(elem, o) {
         'header': {
             title: btn.heading,
             click: function() {
-                var s = editor.selection();
+                var s = editor.selection(),
+                    tag_end = /<h[1-6](>| .*?>)$/.exec(s.before);
+                tag_end = tag_end ? tag_end[1] : '>';
                 T = T < 6 ? T + 1 : 0;
                 if (s.value.length > 0) {
-                    if (!s.before.match(/<h[1-6]>$/)) {
-                        editor.wrap((T > 0 ? '<h' + T + '>' : ""), (T > 0 ? '</h' + T + '>' : ""), function() {
-                            editor.replace(/^<h[1-6]>|<\/h[1-6]>$/g, "");
+                    if (!s.before.match(/<h[1-6](>| .*?>)$/)) {
+                        editor.wrap((T > 0 ? '<h' + T + tag_end : ""), (T > 0 ? '</h' + T + '>' : ""), function() {
+                            editor.replace(/^<h[1-6](>| .*?>)|<\/h[1-6]>$/g, "");
                         });
                     } else {
-                        var clean_B = s.before.replace(/<h[1-6]>$/, ""),
-                            clean_V = s.value.replace(/^<h[1-6]>|<\/h[1-6]>$/g, ""),
+                        var clean_B = s.before.replace(/<h[1-6](>| .*?>)$/, ""),
+                            clean_V = s.value.replace(/^<h[1-6](>| .*?>)|<\/h[1-6]>$/g, ""),
                             clean_A = s.after.replace(/^<\/h[1-6]>/, "");
-                        editor.area.value = clean_B + (T > 0 ? '<h' + T + '>' : "") + clean_V + (T > 0 ? '</h' + T + '>' : "") + clean_A;
-                        editor.select(clean_B.length + (T > 0 ? 4 : 0), clean_B.length + (T > 0 ? 4 : 0) + clean_V.length, function() {
+                        editor.area.value = clean_B + (T > 0 ? '<h' + T + tag_end : "") + clean_V + (T > 0 ? '</h' + T + '>' : "") + clean_A;
+                        editor.select(clean_B.length + (T > 0 ? tag_end.length + 3 : 0), clean_B.length + (T > 0 ? tag_end.length + 3 : 0) + clean_V.length, function() {
                             editor.updateHistory();
                         });
                     }
@@ -380,7 +434,7 @@ var HTE = function(elem, o) {
                             return a.toUpperCase();
                         });
                     alt = alt.indexOf('/') === -1 && r.indexOf('.') !== -1 ? alt : opt.placeholder.image_alt;
-                    editor.insert('\n<img alt="' + alt + '" src="' + r + '">\n');
+                    editor.insert('\n<img alt="' + alt + '" src="' + r + '"' + opt.emptyElementSuffix + '\n');
                 });
             }
         },
@@ -424,19 +478,31 @@ var HTE = function(elem, o) {
                 }
             }
         },
+        'superscript': {
+            title: btn.superscript,
+            click: function() {
+                editor.toggle('<sup>', '</sup>');
+            }
+        },
+        'subscript': {
+            title: btn.subscript,
+            click: function() {
+                editor.toggle('<sub>', '</sub>');
+            }
+        },
         'ellipsis-h': {
             title: btn.rule,
             click: function() {
-                editor.insert('\n<hr>\n');
+                editor.insert('\n<hr' + opt.emptyElementSuffix + '\n');
             }
         },
-        'rotate-left': {
+        'undo': {
             title: btn.undo,
             click: function() {
                 editor.undo();
             }
         },
-        'rotate-right': {
+        'repeat': {
             title: btn.redo,
             click: function() {
                 editor.redo();
@@ -601,7 +667,7 @@ var HTE = function(elem, o) {
 
             // `Shift + Enter` for "break"
             if (shift) {
-                editor.insert('<br>\n');
+                editor.insert('<br' + opt.emptyElementSuffix + '\n');
                 return false;
             }
 
@@ -707,5 +773,6 @@ var HTE = function(elem, o) {
 
     // Make all selection method to be accessible outside the plugin
     base.grip = editor;
+    base.grip.config = opt;
 
 };

@@ -52,3 +52,11 @@ myEditor.button('foo', {
 ```
 
 Read more on the [Wiki Pages of MTE Plugin](https://github.com/tovic/markdown-text-editor/wiki)
+
+Extra Options
+-------------
+
+| Option | Usage | Example |
+| ------ | ----- | ------- |
+| `emptyElementSuffix` | Used to determine the end character of self-closing HTML tags. | ` />` |
+| `autoEncodeHTML` | Automatically encode the selected HTML string inside `<code>` element? | `true` |
