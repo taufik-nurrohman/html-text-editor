@@ -3,7 +3,7 @@ HTML Text Editor Plugin
 
 As mentioned in the title above.
 
-> This is a HTML version of the previous plugin called [MTE](https://github.com/tovic/markdown-text-editor "MTE &ndash; Markdown Text Editor").
+> This is the HTML version of the previous plugin called [MTE](https://github.com/tovic/markdown-text-editor "MTE &ndash; Markdown Text Editor").
 
 Demo
 ----
