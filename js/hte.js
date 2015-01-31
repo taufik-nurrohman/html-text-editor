@@ -606,7 +606,7 @@ var HTE = function(elem, o) {
             return false;
         }
 
-        if (defaults.shortcut) {
+        if (opt.shortcut) {
 
             // `Ctrl + B` for "bold"
             if (ctrl && k == 66) {
