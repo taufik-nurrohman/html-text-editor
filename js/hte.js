@@ -81,7 +81,8 @@ var HTE = function(elem, o) {
     // Base Modal
     base.modal = function(type, callback) {
         type = type || 'modal';
-        var page = doc.body;
+        var page = doc.body,
+            scroll = page.scrollTop || doc.documentElement.scrollTop;
         overlay.className = 'custom-modal-overlay custom-modal-' + type + '-overlay';
         overlay.onclick = function() {
             base.close(true);
@@ -98,7 +99,7 @@ var HTE = function(elem, o) {
             modal.style.top = '50%';
             modal.style.left = '50%';
             modal.style.zIndex = '9999';
-            modal.style.marginTop = '-' + (h / 2) + 'px';
+            modal.style.marginTop = (scroll - (h / 2)) + 'px';
             modal.style.marginLeft = '-' + (w / 2) + 'px';
             modal.style.visibility = "";
         }, 10);
