@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.0.1
+ *  HTML TEXT EDITOR PLUGIN 1.0.2
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -382,20 +382,20 @@ var HTE = function(elem, o) {
             title: btn.heading,
             click: function() {
                 var s = editor.selection(),
-                    tag_end = /<h[1-6](>| .*?>)$/.exec(s.before);
+                    tag_end = /<(?:h[1-6]|p)(>| .*?>)$/.exec(s.before);
                 tag_end = tag_end ? tag_end[1] : '>';
                 T = T < 6 ? T + 1 : 0;
                 if (s.value.length > 0) {
-                    if (!s.before.match(/<h[1-6](>| .*?>)$/)) {
-                        editor.wrap((T > 0 ? '<h' + T + tag_end : ""), (T > 0 ? '</h' + T + '>' : ""), function() {
-                            editor.replace(/^<h[1-6](>| .*?>)|<\/h[1-6]>$/g, "");
+                    if (!s.before.match(/<(?:h[1-6]|p)(>| .*?>)$/)) {
+                        editor.wrap((T > 0 ? '<h' + T + tag_end : '<p' + tag_end), (T > 0 ? '</h' + T + '>' : '</p>'), function() {
+                            editor.replace(/^<(?:h[1-6]|p)(>| .*?>)|<\/(?:h[1-6]|p)>$/g, "");
                         });
                     } else {
-                        var clean_B = s.before.replace(/<h[1-6](>| .*?>)$/, ""),
-                            clean_V = s.value.replace(/^<h[1-6](>| .*?>)|<\/h[1-6]>$/g, ""),
-                            clean_A = s.after.replace(/^<\/h[1-6]>/, "");
-                        editor.area.value = clean_B + (T > 0 ? '<h' + T + tag_end : "") + clean_V + (T > 0 ? '</h' + T + '>' : "") + clean_A;
-                        editor.select(clean_B.length + (T > 0 ? tag_end.length + 3 : 0), clean_B.length + (T > 0 ? tag_end.length + 3 : 0) + clean_V.length, function() {
+                        var clean_B = s.before.replace(/<(?:h[1-6]|p)(>| .*?>)$/g, ""),
+                            clean_V = s.value.replace(/^<(?:h[1-6]|p)(>| .*?>)|<\/(?:h[1-6]|p)>$/g, ""),
+                            clean_A = s.after.replace(/^<\/(?:h[1-6]|p)>/g, "");
+                        editor.area.value = clean_B + (T > 0 ? '<h' + T + tag_end : '<p' + tag_end) + clean_V + (T > 0 ? '</h' + T + '>' : '</p>') + clean_A;
+                        editor.select(clean_B.length + (T > 0 ? tag_end.length + 3 : tag_end.length + 2), clean_B.length + (T > 0 ? tag_end.length + 3 : tag_end.length + 2) + clean_V.length, function() {
                             editor.updateHistory();
                         });
                     }
