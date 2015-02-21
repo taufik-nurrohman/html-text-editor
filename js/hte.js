@@ -241,8 +241,8 @@ var HTE = function(elem, o) {
         return target;
     }
 
-    function css(elem, rule){
-        var ruleJS = rule.replace(/\-(\w)/g, function(match, $1){
+    function css(elem, rule) {
+        var ruleJS = rule.replace(/\-(\w)/g, function(match, $1) {
             return $1.toUpperCase();
         }), value = 0;
         if (doc.defaultView && doc.defaultView.getComputedStyle) {
