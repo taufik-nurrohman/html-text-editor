@@ -56,7 +56,7 @@ var HTE = function(elem, o) {
                 redo: 'Redo'
             },
             prompt: {
-                link_title: 'link title goes here...',
+                link_title: 'link title goes here\u2026',
                 link_title_title: 'Link Title',
                 link_url: 'http://',
                 link_url_title: 'Link URL',
@@ -239,6 +239,20 @@ var HTE = function(elem, o) {
             }
         }
         return target;
+    }
+
+    function css(elem, rule){
+        var ruleJS = rule.replace(/\-(\w)/g, function(match, $1){
+            return $1.toUpperCase();
+        }), value = 0;
+        if (doc.defaultView && doc.defaultView.getComputedStyle) {
+            value = doc.defaultView.getComputedStyle(elem, "").getPropertyValue(rule);
+        } else if (elem.currentStyle) {
+            value = elem.currentStyle[ruleJS];
+        } else {
+            value = elem.style[ruleJS];
+        }
+        return parseInt(value, 10);
     }
 
     var opt = extend(defaults, o), nav = doc.createElement('span');
@@ -441,7 +455,7 @@ var HTE = function(elem, o) {
                     var alt = decodeURIComponent(
                         r.substring(
                             r.lastIndexOf('/') + 1, r.lastIndexOf('.')
-                        ).replace(/[\-\+\.\_]+/g, ' ')
+                        ).replace(/[-+._]+/g, ' ')
                     ).toLowerCase()
                         .replace(/(?:^|\s)\S/g, function(a) {
                             return a.toUpperCase();
@@ -534,11 +548,13 @@ var HTE = function(elem, o) {
 
     editor.area.onkeydown = function(e) {
 
-        var s = editor.selection(),
+        var EA = this,
+            s = editor.selection(),
             k = e.keyCode,
             ctrl = e.ctrlKey,
             shift = e.shiftKey,
-            alt = e.altKey;
+            alt = e.altKey,
+            scroll = EA.scrollTop + css(EA, 'line-height');
 
         win.setTimeout(function() {
             opt.keydown(e, base);
@@ -681,22 +697,25 @@ var HTE = function(elem, o) {
             // `Shift + Enter` for "break"
             if (shift) {
                 editor.insert('<br' + opt.emptyElementSuffix + '\n');
+                EA.scrollTop = scroll;
                 return false;
             }
 
-            // Case `<li>List Item</li>{{press Enter key here!}}`
+            // Case `<li>List Item</li>{{press Enter key here!!!}}`
             if (s.before.match(/<\/li>$/)) {
                 editor.insert('\n' + opt.tabSize + '<li></li>', function() {
                     editor.select(s.end + opt.tabSize.length + 5, s.end + opt.tabSize.length + 5, function() {
                         editor.updateHistory();
                     });
                 });
+                EA.scrollTop = scroll;
                 return false;
             }
 
-            // Case `<li>List Item{{press Enter key here!}}</li>`
+            // Case `<li>List Item{{press Enter key here!!!}}</li>`
             if (s.after.match(/^<\/li>/)) {
                 editor.insert('</li>\n' + opt.tabSize + '<li>');
+                EA.scrollTop = scroll;
                 return false;
             }
 
@@ -709,11 +728,12 @@ var HTE = function(elem, o) {
                         editor.updateHistory();
                     });
                 });
+                EA.scrollTop = scroll;
                 return false;
             }
 
             editor.insert('\n' + indent);
-
+            EA.scrollTop = scroll;
             return false;
 
         }
