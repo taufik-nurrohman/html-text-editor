@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.0.2
+ *  HTML TEXT EDITOR PLUGIN 1.0.3
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -30,6 +30,12 @@ var HTE = function(elem, o) {
             iconClassPrefix: 'fa fa-', // for `<i class="fa fa-ICON_NAME"></i>`
             emptyElementSuffix: '>', // used to determine the end character of self-closing HTML tags
             autoEncodeHTML: true, // encode the selected HTML string inside `<code>` element ?
+            STRONG: 'strong',
+            EM: 'em',
+            U: 'u',
+            STRIKE: 'del datetime="%s"',
+            UL: 'ul',
+            OL: 'ol',
             buttons: {
                 ok: 'OK',
                 yes: 'Yes',
@@ -232,7 +238,7 @@ var HTE = function(elem, o) {
     function extend(target, source) {
         target = target || {};
         for (var prop in source) {
-            if (typeof source[prop] === "object") {
+            if (typeof source[prop] == "object") {
                 target[prop] = extend(target[prop], source[prop]);
             } else {
                 target[prop] = source[prop];
@@ -264,7 +270,7 @@ var HTE = function(elem, o) {
         if (data.title === false) return;
         var a = doc.createElement('a');
             a.className = opt.buttonClassPrefix + key;
-            a.href = '#' + key.replace(' ', ':').replace(/[^a-z0-9\:]/gi, '-').replace(/-+/g,'-').replace(/^-+|-+$/, "");
+            a.href = '#' + key.replace(' ', ':').replace(/[^a-z0-9\:]/gi, '-').replace(/-+/g,'-').replace(/^-+|-+$/g, "");
             a.setAttribute('tabindex', -1);
             a.innerHTML = '<i class="' + opt.iconClassPrefix + key + '"></i>';
             a.onclick = function(e) {
@@ -301,19 +307,19 @@ var HTE = function(elem, o) {
         'bold': {
             title: btn.bold,
             click: function() {
-                editor.toggle('<strong>', '</strong>');
+                editor.toggle('<' + opt.STRONG + '>', '</' + opt.STRONG.split(' ')[0] + '>');
             }
         },
         'italic': {
             title: btn.italic,
             click: function() {
-                editor.toggle('<em>', '</em>');
+                editor.toggle('<' + opt.EM + '>', '</' + opt.EM.split(' ')[0] + '>');
             }
         },
         'underline': {
             title: btn.underline,
             click: function() {
-                editor.toggle('<u>', '</u>');
+                editor.toggle('<' + opt.U + '>', '</' + opt.U.split(' ')[0] + '>');
             }
         },
         'strikethrough': {
@@ -325,7 +331,7 @@ var HTE = function(elem, o) {
                     year = today.getFullYear();
                 if (day < 10) day = '0' + day;
                 if (month < 10) month = '0' + month;
-                editor.toggle('<del datetime="' + year + '-' + month + '-' + day + '">', '</del>');
+                editor.toggle('<' + opt.STRIKE.replace(/%s/g, year + '-' + month + '-' + day) + '>', '</' + opt.STRIKE.split(' ')[0] + '>');
             }
         },
         'code': {
@@ -454,10 +460,9 @@ var HTE = function(elem, o) {
                         r.substring(
                             r.lastIndexOf('/') + 1, r.lastIndexOf('.')
                         ).replace(/[-+._]+/g, ' ')
-                    ).toLowerCase()
-                        .replace(/(?:^|\s)\S/g, function(a) {
-                            return a.toUpperCase();
-                        });
+                    ).toLowerCase().replace(/(?:^|\s)\S/g, function(a) {
+                        return a.toUpperCase();
+                    });
                     alt = alt.indexOf('/') === -1 && r.indexOf('.') !== -1 ? alt : opt.placeholder.image_alt;
                     editor.insert('\n<img alt="' + alt + '" src="' + r + '"' + opt.emptyElementSuffix + '\n');
                 });
@@ -472,10 +477,10 @@ var HTE = function(elem, o) {
                     if (s.value == placeholder) {
                         editor.select(s.start, s.end);
                     } else {
-                        editor.insert('<ol>\n' + opt.tabSize + '<li>' + s.value.replace(/\n/g, '</li>\n' + opt.tabSize + '<li>').replace(new RegExp('\n(' + opt.tabSize + ')?<li></li>\n', 'g'), '\n</ol>\n\n<ol>\n') + '</li>\n</ol>');
+                        editor.insert('<' + opt.OL + '>\n' + opt.tabSize + '<li>' + s.value.replace(/\n/g, '</li>\n' + opt.tabSize + '<li>').replace(new RegExp('\n(' + opt.tabSize + ')?<li></li>\n', 'g'), '\n</' + opt.OL.split(' ')[0] + '>\n\n<' + opt.OL + '>\n') + '</li>\n</' + opt.OL.split(' ')[0] + '>');
                     }
                 } else {
-                    editor.insert('<ol>\n' + opt.tabSize + '<li>' + placeholder + '</li>\n</ol>', function() {
+                    editor.insert('<' + opt.OL + '>\n' + opt.tabSize + '<li>' + placeholder + '</li>\n</' + opt.OL.split(' ')[0] + '>', function() {
                         editor.select(s.start + opt.tabSize.length + 9, s.start + opt.tabSize.length + 9 + placeholder.length, function() {
                             editor.updateHistory();
                         });
@@ -492,10 +497,10 @@ var HTE = function(elem, o) {
                     if (s.value == placeholder) {
                         editor.select(s.start, s.end);
                     } else {
-                        editor.insert('<ul>\n' + opt.tabSize + '<li>' + s.value.replace(/\n/g, '</li>\n' + opt.tabSize + '<li>').replace(new RegExp('\n(' + opt.tabSize + ')?<li></li>\n', 'g'), '\n</ul>\n\n<ul>\n') + '</li>\n</ul>');
+                        editor.insert('<' + opt.UL + '>\n' + opt.tabSize + '<li>' + s.value.replace(/\n/g, '</li>\n' + opt.tabSize + '<li>').replace(new RegExp('\n(' + opt.tabSize + ')?<li></li>\n', 'g'), '\n</' + opt.UL.split(' ')[0] + '>\n\n<' + opt.UL + '>\n') + '</li>\n</' + opt.UL.split(' ')[0] + '>');
                     }
                 } else {
-                    editor.insert('<ul>\n' + opt.tabSize + '<li>' + placeholder + '</li>\n</ul>', function() {
+                    editor.insert('<' + opt.UL + '>\n' + opt.tabSize + '<li>' + placeholder + '</li>\n</' + opt.UL.split(' ')[0] + '>', function() {
                         editor.select(s.start + opt.tabSize.length + 9, s.start + opt.tabSize.length + 9 + placeholder.length, function() {
                             editor.updateHistory();
                         });
@@ -653,12 +658,12 @@ var HTE = function(elem, o) {
                 return false;
             }
 
-            // `Alt + Q` or `Alt + Shift + Q` for "quote"
-            if (alt && k == 81) {
-                if (shift) {
-                    editor.toggle('&ldquo;', '&rdquo;'); // double quote
+            // `Shift + Q` or `Shift + Alt + Q` for "quote"
+            if (shift && k == 81) {
+                if (alt) {
+                    editor.toggle('\u2018', '\u2019'); // single quote
                 } else {
-                    editor.toggle('&lsquo;', '&rsquo;'); // single quote
+                    editor.toggle('\u201C', '\u201D'); // double quote
                 }
                 return false;
             }
@@ -788,10 +793,9 @@ var HTE = function(elem, o) {
 
             // Jump out from the closing tag quickly
             if (s.after.match(/^<\/.*?>/)) {
-                var end = s.end + s.after.indexOf('>');
-                editor.select(end, end, function() {
-                    editor.updateHistory();
-                });
+                var end = s.end + s.after.indexOf('>') + 1;
+                editor.select(end, end);
+                return false;
             }
 
         }
@@ -802,7 +806,7 @@ var HTE = function(elem, o) {
 
     opt.ready(base);
 
-    // Make all selection method to be accessible outside the plugin
+    // Make all selection method becomes accessible outside the plugin
     base.grip = editor;
     base.grip.config = opt;
 
