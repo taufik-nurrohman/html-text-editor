@@ -16,6 +16,10 @@
 
 var HTE = function(elem, o) {
 
+    // Backward Compatibility
+    if (typeof o.prompt != "undefined") o.prompts = o.prompt;
+    if (typeof o.placeholder != "undefined") o.placeholders = o.placeholder;
+
     var base = this,
         win = window,
         doc = document,
@@ -61,7 +65,7 @@ var HTE = function(elem, o) {
                 undo: 'Undo',
                 redo: 'Redo'
             },
-            prompt: {
+            prompts: {
                 link_title: 'link title goes here\u2026',
                 link_title_title: 'Link Title',
                 link_url: 'http://',
@@ -69,7 +73,7 @@ var HTE = function(elem, o) {
                 image_url: 'http://',
                 image_url_title: 'Image URL'
             },
-            placeholder: {
+            placeholders: {
                 heading_text: 'Heading',
                 link_text: 'link text',
                 list_ul_text: 'List Item',
@@ -272,7 +276,7 @@ var HTE = function(elem, o) {
             a.className = opt.buttonClassPrefix + key;
             a.href = '#' + key.replace(' ', ':').replace(/[^a-z0-9\:]/gi, '-').replace(/-+/g,'-').replace(/^-+|-+$/g, "");
             a.setAttribute('tabindex', -1);
-            a.innerHTML = '<i class="' + opt.iconClassPrefix + key + '"></i>';
+            a.innerHTML = data.text ? data.text.replace(/%s/g, key) : '<i class="' + opt.iconClassPrefix + key + '"></i>';
             a.onclick = function(e) {
                 data.click(e, base);
                 opt.click(e, base, this.hash.replace('#', ""));
@@ -418,7 +422,7 @@ var HTE = function(elem, o) {
                         });
                     }
                 } else {
-                    var placeholder = opt.placeholder.heading_text;
+                    var placeholder = opt.placeholders.heading_text;
                     T = 1;
                     editor.insert('<h' + T + '>' + placeholder + '</h' + T + '>', function() {
                         s = editor.selection().end;
@@ -433,10 +437,10 @@ var HTE = function(elem, o) {
             title: btn.link,
             click: function() {
                 var s = editor.selection(),
-                    title, url, placeholder = opt.placeholder.link_text;
-                base.prompt(opt.prompt.link_title_title, opt.prompt.link_title, false, function(r) {
+                    title, url, placeholder = opt.placeholders.link_text;
+                base.prompt(opt.prompts.link_title_title, opt.prompts.link_title, false, function(r) {
                     title = r;
-                    base.prompt(opt.prompt.link_url_title, opt.prompt.link_url, true, function(r) {
+                    base.prompt(opt.prompts.link_url_title, opt.prompts.link_url, true, function(r) {
                         url = r;
                         if (s.value.length === 0) {
                             editor.insert('<a href="' + url + '"' + (title !== "" ? ' title=\"' + title + '\"' : "") + '>' + placeholder + '</a>', function() {
@@ -455,7 +459,7 @@ var HTE = function(elem, o) {
         'image': {
             title: btn.image,
             click: function() {
-                base.prompt(opt.prompt.image_url_title, opt.prompt.image_url, true, function(r) {
+                base.prompt(opt.prompts.image_url_title, opt.prompts.image_url, true, function(r) {
                     var alt = decodeURIComponent(
                         r.substring(
                             r.lastIndexOf('/') + 1, r.lastIndexOf('.')
@@ -463,7 +467,7 @@ var HTE = function(elem, o) {
                     ).toLowerCase().replace(/(?:^|\s)\S/g, function(a) {
                         return a.toUpperCase();
                     });
-                    alt = alt.indexOf('/') === -1 && r.indexOf('.') !== -1 ? alt : opt.placeholder.image_alt;
+                    alt = alt.indexOf('/') === -1 && r.indexOf('.') !== -1 ? alt : opt.placeholders.image_alt;
                     editor.insert('\n<img alt="' + alt + '" src="' + r + '"' + opt.emptyElementSuffix + '\n');
                 });
             }
@@ -472,7 +476,7 @@ var HTE = function(elem, o) {
             title: btn.ol,
             click: function() {
                 var s = editor.selection(),
-                    placeholder = opt.placeholder.list_ol_text;
+                    placeholder = opt.placeholders.list_ol_text;
                 if (s.value.length > 0) {
                     if (s.value == placeholder) {
                         editor.select(s.start, s.end);
@@ -492,7 +496,7 @@ var HTE = function(elem, o) {
             title: btn.ul,
             click: function() {
                 var s = editor.selection(),
-                    placeholder = opt.placeholder.list_ul_text;
+                    placeholder = opt.placeholders.list_ul_text;
                 if (s.value.length > 0) {
                     if (s.value == placeholder) {
                         editor.select(s.start, s.end);
