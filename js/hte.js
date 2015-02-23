@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.0.3
+ *  HTML TEXT EDITOR PLUGIN 1.0.4
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -375,15 +375,15 @@ var HTE = function(elem, o) {
             click: function() {
                 var v = editor.selection().value;
                 if (v.indexOf('\n') !== -1) {
-                    if (/^<p>|<\/p>$/.test(v)) {
-                        editor.replace(/<p>([\s\S]*?)<\/p>/g, '$1');
+                    if (/^<p(>| .*?>)|<\/p>$/.test(v)) {
+                        editor.replace(/<p(>| .*?>)([\s\S]*?)<\/p>/g, '$2');
                     } else {
                         editor.replace(/^/, '<p>');
                         editor.replace(/$/, '</p>')
                         editor.replace(/\n/g, '</p>\n<p>');
-                        editor.replace(/<p><\/p>/g, "");
-                        editor.replace(/<p><p>/g, '<p>');
-                        editor.replace(/<\/p><\/p>/g, '</p>');
+                        editor.replace(/<p(>| .*?>)<\/p>/g, "");
+                        editor.replace(/(<p(>| .*?>))+/g, '$1');
+                        editor.replace(/(<\/p>)+/g, '$1');
                     }
                 } else {
                     editor.toggle('<p>', '</p>');
@@ -544,7 +544,7 @@ var HTE = function(elem, o) {
 
     var insert = function(chars, s) {
         editor.insert(chars, function() {
-            editor.select(s.end + 1, s.end + 1);
+            editor.select(s.end + 1);
         });
         return false;
     };
@@ -575,7 +575,7 @@ var HTE = function(elem, o) {
             b.indexOf('`') !== -1 && !shift && k == 192 && a == '`' && b.slice(-1) != '\\' ||
             b.indexOf('<') !== -1 && shift && k == 190 && a == '>' && b.slice(-1) != '\\'
         ) {
-            editor.select(s.end + 1, s.end + 1); // move caret by 1 character to the right
+            editor.select(s.end + 1); // move caret by 1 character to the right
             return false;
         }
 
@@ -622,6 +622,16 @@ var HTE = function(elem, o) {
 
         // `Tab` to indent
         if (k == 9) {
+            // Auto close for HTML tags
+            // Case `<div|>`
+            if (s.before.match(/<[^\/>]*?$/) && s.after[0] == '>') {
+                var match = /<([^\/>]*?)$/.exec(s.before);
+                EA.value = s.before + ' ' + s.value + '></' + match[1].split(' ')[0] + s.after;
+                editor.select(s.start + 1, function() {
+                    editor.updateHistory();
+                });
+                return false;
+            }
             editor.indent(opt.tabSize);
             return false;
         }
@@ -659,7 +669,7 @@ var HTE = function(elem, o) {
             }
 
             // `Shift + Q` or `Shift + Alt + Q` for "quote"
-            if (shift && k == 81) {
+            if (shift && k == 81 && s.value.length > 0) {
                 if (alt) {
                     editor.toggle('\u2018', '\u2019'); // single quote
                 } else {
@@ -704,10 +714,11 @@ var HTE = function(elem, o) {
                 return false;
             }
 
-            // Case `<li>List Item</li>{{press Enter key here!!!}}`
+            // Case `<li>List Item</li>|`
             if (s.before.match(/<\/li>$/)) {
-                editor.insert('\n' + opt.tabSize + '<li></li>', function() {
-                    editor.select(s.end + opt.tabSize.length + 5, s.end + opt.tabSize.length + 5, function() {
+                var match = /(?:^|\n)([\t ]*)<li(>| .*?>).*?<\/li>$/.exec(s.before);
+                editor.insert('\n' + match[1] + '<li' + match[2] + '</li>', function() {
+                    editor.select(s.end + match[1].length + match[2].length + 4, function() {
                         editor.updateHistory();
                     });
                 });
@@ -715,19 +726,28 @@ var HTE = function(elem, o) {
                 return false;
             }
 
-            // Case `<li>List Item{{press Enter key here!!!}}</li>`
-            if (s.after.match(/^<\/li>/)) {
-                editor.insert('</li>\n' + opt.tabSize + '<li>');
+            // Case `<li>List Item|</li>`
+            if (s.after.match(/^<\/li>/) && s.before.slice(-1) != '>') {
+                var match = /(?:^|\n)([\t ]*)<li(>| .*?>).*$/.exec(s.before);
+                editor.insert('</li>\n' + match[1] + '<li' + match[2]);
+                EA.scrollTop = scroll;
+                return false;
+            }
+
+            // Case `|</p>`
+            if (s.after.match(/^<\/p>/)) {
+                var match = /(?:^|\n)([\t ]*)<p(>| .*?>).*$/.exec(s.before);
+                editor.insert('</p>\n' + match[1] + '<p' + match[2]);
                 EA.scrollTop = scroll;
                 return false;
             }
 
             // Automatic indentation
-            var indentBefore = (new RegExp('(^|\n)((' + opt.tabSize + ')+)(.*?)$')).exec(s.before),
-                indent = indentBefore ? indentBefore[2] : "";
-            if (s.before.match(/[\(\{\[]$/) && s.after.match(/^[\]\}\)]/) || s.before.match(/<[^\/]*?>$/) && s.after.match(/^<\//)) {
+            var indentBefore = (new RegExp('(?:^|\n)((' + opt.tabSize + ')+)(.*?)$')).exec(s.before),
+                indent = indentBefore ? indentBefore[1] : "";
+            if (s.before.match(/[\(\{\[]$/) && s.after.match(/^[\]\}\)]/) || s.before.match(/<[^\/>]*?>$/) && s.after.match(/^<\//)) {
                 editor.insert('\n' + indent + opt.tabSize + '\n' + indent, function() {
-                    editor.select(s.start + indent.length + opt.tabSize.length + 1, s.start + indent.length + opt.tabSize.length + 1, function() {
+                    editor.select(s.start + indent.length + opt.tabSize.length + 1, function() {
                         editor.updateHistory();
                     });
                 });
@@ -749,6 +769,12 @@ var HTE = function(elem, o) {
                 // Remove indentation quickly
                 if(s.before.match(new RegExp(opt.tabSize + '$'))) {
                     editor.outdent(opt.tabSize);
+                    return false;
+                }
+
+                // Remove HTML tag quickly
+                if (s.before.match(/<\/?[^>]*?>$/)) {
+                    editor.outdent('<\/?[^>]*?>');
                     return false;
                 }
 
@@ -794,13 +820,15 @@ var HTE = function(elem, o) {
             // Jump out from the closing tag quickly
             if (s.after.match(/^<\/.*?>/)) {
                 var end = s.end + s.after.indexOf('>') + 1;
-                editor.select(end, end);
+                editor.select(end);
                 return false;
             }
 
         }
 
-        editor.updateHistory();
+        if (!alt && !ctrl && !shift) {
+            editor.updateHistory();
+        }
 
     };
 
