@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.0.4
+ *  HTML TEXT EDITOR PLUGIN 1.0.5
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -74,6 +74,7 @@ var HTE = function(elem, o) {
                 image_url_title: 'Image URL'
             },
             placeholders: {
+                text: 'text goes here\u2026',
                 heading_text: 'Heading',
                 link_text: 'link text',
                 list_ul_text: 'List Item',
@@ -265,6 +266,10 @@ var HTE = function(elem, o) {
 
     var opt = extend(defaults, o), nav = doc.createElement('span');
 
+    // Escapes for `RegExp()` input
+    var re_ = /([!$^*\(\)\-+=\{\}\[\].,?\\\/])/g,
+        re_TAB = opt.tabSize.replace(re_, '\\$1');
+
     if (opt.toolbar) {
         nav.className = opt.toolbarClass;
         editor.area.parentNode.insertBefore(nav, opt.toolbarPosition == "before" ? editor.area : null);
@@ -404,7 +409,8 @@ var HTE = function(elem, o) {
             title: btn.heading,
             click: function() {
                 var s = editor.selection(),
-                    tag_end = /<(?:h[1-6]|p)(>| .*?>)$/.exec(s.before);
+                    re = '<(?:h[1-6]|p)(>| .*?>)',
+                    tag_end = s.value.match(new RegExp('^' + re)) ? new RegExp('^' + re).exec(s.value) : new RegExp(re + '$').exec(s.before);
                 tag_end = tag_end ? tag_end[1] : '>';
                 T = T < 6 ? T + 1 : 0;
                 if (s.value.length > 0) {
@@ -567,60 +573,60 @@ var HTE = function(elem, o) {
             opt.keydown(e, base);
         }, 10);
 
-        // Disable the end bracket key if the character before
-        // cursor is matched with the character after cursor
-        var b = s.before, a = s.after[0];
+        // Disable the end bracket key if character before
+        // cursor is matched with character after cursor
+        var b = s.before, a = s.after[0], esc = b.slice(-1) == '\\';
         if (
-            b.indexOf('(') !== -1 && shift && k == 48 && a == ')' && b.slice(-1) != '\\' ||
-            b.indexOf('{') !== -1 && shift && k == 221 && a == '}' && b.slice(-1) != '\\' ||
-            b.indexOf('[') !== -1 && k == 221 && a == ']' && b.slice(-1) != '\\' ||
-            b.indexOf('"') !== -1 && shift && k == 222 && a == '"' && b.slice(-1) != '\\' ||
-            b.indexOf('\'') !== -1 && !shift && k == 222 && a == '\'' && b.slice(-1) != '\\' ||
-            b.indexOf('`') !== -1 && !shift && k == 192 && a == '`' && b.slice(-1) != '\\' ||
-            b.indexOf('<') !== -1 && shift && k == 190 && a == '>' && b.slice(-1) != '\\'
+            b.indexOf('(') !== -1 && shift && k == 48 && a == ')' && !esc ||
+            b.indexOf('{') !== -1 && shift && k == 221 && a == '}' && !esc ||
+            b.indexOf('[') !== -1 && k == 221 && a == ']' && !esc ||
+            b.indexOf('"') !== -1 && shift && k == 222 && a == '"' && !esc ||
+            b.indexOf('\'') !== -1 && !shift && k == 222 && a == '\'' && !esc ||
+            b.indexOf('`') !== -1 && !shift && k == 192 && a == '`' && !esc ||
+            b.indexOf('<') !== -1 && shift && k == 190 && a == '>' && !esc
         ) {
             editor.select(s.end + 1); // move caret by 1 character to the right
             return false;
         }
 
         // Auto close for `(`
-        if (shift && k == 57) {
+        if (shift && k == 57 && !esc) {
             return insert('(' + s.value + ')', s);
         }
 
         // Auto close for `{`
-        if (shift && k == 219) {
+        if (shift && k == 219 && !esc) {
             return insert('{' + s.value + '}', s);
         }
 
         // Auto close for `[`
-        if (!shift && k == 219) {
+        if (!shift && k == 219 && !esc) {
             return insert('[' + s.value + ']', s);
         }
 
         // Auto close for `"`
-        if (shift && k == 222) {
+        if (shift && k == 222 && !esc) {
             return insert('\"' + s.value + '\"', s);
         }
 
         // Auto close for `'`
-        if (!shift && k == 222) {
+        if (!shift && k == 222 && !esc) {
             return insert('\'' + s.value + '\'', s);
         }
 
         // Auto close for ```
-        if (!shift && k == 192) {
+        if (!shift && k == 192 && !esc) {
             return insert('`' + s.value + '`', s);
         }
 
         // Auto close for `<`
-        if (shift && k == 188) {
+        if (shift && k == 188 && !esc) {
             return insert('<' + s.value + '>', s);
         }
 
         // `Shift + Tab` to outdent
         if (shift && k == 9) {
-            editor.outdent(opt.tabSize);
+            editor.outdent(re_TAB);
             return false;
         }
 
@@ -636,7 +642,7 @@ var HTE = function(elem, o) {
                 });
                 return false;
             }
-            editor.indent(opt.tabSize);
+            editor.indent(re_TAB);
             return false;
         }
 
@@ -747,7 +753,7 @@ var HTE = function(elem, o) {
             }
 
             // Automatic indentation
-            var indentBefore = (new RegExp('(?:^|\n)((' + opt.tabSize + ')+)(.*?)$')).exec(s.before),
+            var indentBefore = (new RegExp('(?:^|\n)((' + re_TAB + ')+)(.*?)$')).exec(s.before),
                 indent = indentBefore ? indentBefore[1] : "";
             if (s.before.match(/[\(\{\[]$/) && s.after.match(/^[\]\}\)]/) || s.before.match(/<[^\/>]*?>$/) && s.after.match(/^<\//)) {
                 editor.insert('\n' + indent + opt.tabSize + '\n' + indent, function() {
@@ -771,8 +777,8 @@ var HTE = function(elem, o) {
             if (s.value.length === 0) {
 
                 // Remove indentation quickly
-                if(s.before.match(new RegExp(opt.tabSize + '$'))) {
-                    editor.outdent(opt.tabSize);
+                if(s.before.match(new RegExp(re_TAB + '$'))) {
+                    editor.outdent(re_TAB);
                     return false;
                 }
 
