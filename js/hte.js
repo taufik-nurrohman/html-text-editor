@@ -378,7 +378,7 @@ var HTE = function(elem, o) {
             title: btn.paragraph,
             click: function() {
                 var v = editor.selection().value;
-                if (v.indexOf('\n') !== -1) {
+                if (v.length > 0) {
                     if (/^<p(>| .*?>)|<\/p>$/.test(v)) {
                         editor.replace(/<p(>| .*?>)([\s\S]*?)<\/p>/g, '$2');
                     } else {
