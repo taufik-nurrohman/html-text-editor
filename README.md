@@ -51,7 +51,7 @@ myEditor.button('foo', {
 });
 ~~~
 
-Read more on the [MTE Wiki Pages](/tovic/markdown-text-editor/wiki)
+Read more on the [MTE Wiki Pages](https://github.com/tovic/markdown-text-editor/wiki)
 
 Extra Options
 -------------

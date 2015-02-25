@@ -100,7 +100,8 @@ var HTE = function(elem, o) {
         };
 
     var overlay = doc.createElement('div'),
-        modal = doc.createElement('div');
+        modal = doc.createElement('div'),
+        noop = function() {};
 
     // Base Modal
     base.modal = function(type, callback) {
@@ -488,11 +489,11 @@ var HTE = function(elem, o) {
                     if (new RegExp('^<' + p_e_ + '(>| .*?>)|<\\/' + p_e_ + '>$').test(v)) {
                         editor.replace(new RegExp('<' + p_e_ + '(>| .*?>)([\\s\\S]*?)<\\/' + p_e_ + '>', 'g'), '$2');
                     } else {
-                        editor.replace(/^/, '<' + p + '>', 1);
-                        editor.replace(/$/, '</' + p_ + '>')
-                        editor.replace(/\n/g, '</' + p_ + '>\n<' + p + '>', 1);
-                        editor.replace(new RegExp('<' + p_ + '(>| .*?>)<\\/' + p_ + '>', 'g'), "", 1);
-                        editor.replace(new RegExp('(<' + p_ + '(>| .*?>))+', 'g'), '$1', 1);
+                        editor.replace(/^/, '<' + p + '>', noop);
+                        editor.replace(/$/, '</' + p_ + '>', noop);
+                        editor.replace(/\n/g, '</' + p_ + '>\n<' + p + '>', noop);
+                        editor.replace(new RegExp('<' + p_ + '(>| .*?>)<\\/' + p_ + '>', 'g'), "", noop);
+                        editor.replace(new RegExp('(<' + p_ + '(>| .*?>))+', 'g'), '$1', noop);
                         editor.replace(new RegExp('(<\\/' + p_ + '>)+', 'g'), '$1');
                     }
                 } else {
@@ -535,11 +536,12 @@ var HTE = function(elem, o) {
                 if (s.value.length > 0) {
                     if (!s.before.match(new RegExp(re + '$'))) {
                         editor.wrap('<' + (T > 0 ? h.replace(/%d/g, T) : p) + tag_end, '</' + (T > 0 ? h_.replace(/%d/g, T) : p_) + '>', function() {
-                            editor.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "");
+                            editor.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "", noop);
+                            editor.replace(/\n+/g, ' ');
                         });
                     } else {
                         var clean_B = trim_(s.before.replace(new RegExp(re + '$', 'g'), "")),
-                            clean_V = trim(s.value.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "")),
+                            clean_V = trim(s.value.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "").replace(/\n+/g, ' ')),
                             clean_A = _trim(s.after.replace(new RegExp('^' + re, 'g'), "")),
                             h__ = h_.replace(/%d/g, T);
                         editor.area.value = clean_B + s_B + '<' + (T > 0 ? h__ : p_) + tag_end + clean_V + '</' + (T > 0 ? h__ : p_) + '>\n\n' + clean_A;
