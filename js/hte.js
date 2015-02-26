@@ -212,7 +212,7 @@ var HTE = function(elem, o) {
     base.close = function(select) {
         if (overlay) doc.body.removeChild(overlay);
         if (modal) doc.body.removeChild(modal);
-        if (typeof select != "undefined" && select === true) {
+        if (select && select !== false) {
             var s = editor.selection();
             editor.select(s.start, s.end);
         }
