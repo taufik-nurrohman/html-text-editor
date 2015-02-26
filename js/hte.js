@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.0.6
+ *  HTML TEXT EDITOR PLUGIN 1.0.7
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -103,6 +103,75 @@ var HTE = function(elem, o) {
         modal = doc.createElement('div'),
         noop = function() {};
 
+    function extend(target, source) {
+        target = target || {};
+        for (var prop in source) {
+            if (typeof source[prop] == "object") {
+                target[prop] = extend(target[prop], source[prop]);
+            } else {
+                target[prop] = source[prop];
+            }
+        }
+        return target;
+    }
+
+    function css(elem, rule) {
+        var ruleJS = rule.replace(/\-(\w)/g, function(match, $1) {
+            return $1.toUpperCase();
+        }), value = 0;
+        if (doc.defaultView && doc.defaultView.getComputedStyle) {
+            value = doc.defaultView.getComputedStyle(elem, null).getPropertyValue(rule);
+        } else {
+            value = elem.style[ruleJS];
+        }
+        return value;
+    }
+
+    function insert(chars, s) {
+        editor.insert(chars, function() {
+            editor.select(s.end + 1);
+        });
+        return false;
+    }
+
+    function trim(str) {
+        return str.replace(/^\s+|\s+$/g, "");
+    }
+
+    function _trim(str) {
+        return str.replace(/^\s+/, "");
+    }
+
+    function trim_(str) {
+        return str.replace(/\s+$/, "");
+    }
+
+    function escape(str) {
+        return str.replace(editor.escape, '\\$1');
+    }
+
+    function list(type, placeholder) {
+        var s = editor.selection(),
+            list = type,
+            li = opt.LI,
+            list_ = list.split(' ')[0],
+            li_ = li.split(' ')[0], end;
+        if (s.value.length > 0) {
+            if (s.value == placeholder) {
+                editor.select(s.start, s.end);
+            } else {
+                editor.insert('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + s.value.replace(/\n/g, '</' + li_ + '>\n' + opt.tabSize + '<' + li + '>').replace(new RegExp('\\n(' + opt.tabSize + ')?<' + li + '><\\/' + li_ + '>\\n', 'g'), '\n</' + list_ + '>\n\n<' + list + '>\n') + '</' + li_ + '>\n</' + list_ + '>');
+            }
+        } else {
+            editor.insert('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n</' + list_ + '>', function() {
+                end = s.start + 1 + list.length + 2 + opt.tabSize.length + 1 + li.length + 1;
+                editor.select(end, end + placeholder.length, function() {
+                    editor.updateHistory();
+                });
+            });
+        }
+    }
+
     // Base Modal
     base.modal = function(type, callback) {
         type = type || 'modal';
@@ -150,9 +219,9 @@ var HTE = function(elem, o) {
     };
 
     // Custom Prompt Modal
-    base.prompt = function(title, value, isRequired, callback) {
+    base.prompt = function(title, value, required, callback) {
         base.modal('prompt', function(o, m) {
-            var onSuccess = function(value) {
+            var success = function(value) {
                 if (typeof callback == "function") {
                     base.close();
                     callback(value);
@@ -164,19 +233,19 @@ var HTE = function(elem, o) {
                 input.type = "text";
                 input.value = value;
                 input.onkeyup = function(e) {
-                    if (isRequired) {
-                        if (e.keyCode == 13 && this.value !== "" && this.value !== value) onSuccess(this.value);
+                    if (required) {
+                        if (e.keyCode == 13 && this.value !== "" && this.value !== value) success(this.value);
                     } else {
-                        if (e.keyCode == 13) onSuccess(this.value == value ? "" : this.value);
+                        if (e.keyCode == 13) success(this.value == value ? "" : this.value);
                     }
                 };
             var OK = doc.createElement('button');
                 OK.innerHTML = opt.buttons.ok;
                 OK.onclick = function() {
-                    if (isRequired) {
-                        if (input.value !== "" && input.value !== value) onSuccess(input.value);
+                    if (required) {
+                        if (input.value !== "" && input.value !== value) success(input.value);
                     } else {
-                        onSuccess(input.value == value ? "" : input.value);
+                        success(input.value == value ? "" : input.value);
                     }
                 };
             var CANCEL = doc.createElement('button');
@@ -254,62 +323,27 @@ var HTE = function(elem, o) {
         });
     };
 
-    function extend(target, source) {
-        target = target || {};
-        for (var prop in source) {
-            if (typeof source[prop] == "object") {
-                target[prop] = extend(target[prop], source[prop]);
-            } else {
-                target[prop] = source[prop];
-            }
-        }
-        return target;
-    }
-
-    function css(elem, rule) {
-        var ruleJS = rule.replace(/\-(\w)/g, function(match, $1) {
-            return $1.toUpperCase();
-        }), value = 0;
-        if (doc.defaultView && doc.defaultView.getComputedStyle) {
-            value = doc.defaultView.getComputedStyle(elem, null).getPropertyValue(rule);
+    // Scroll the `<textarea>`
+    base.scroll = function(pos, callback) {
+        var EA = editor.area;
+        if (typeof pos == "number") {
+            EA.scrollTop = pos;
         } else {
-            value = elem.style[ruleJS];
+            EA.scrollTop += parseInt(css(EA, 'line-height'), 10);
         }
-        return value;
-    }
+        if (typeof callback == "function") callback();
+    };
 
-    function insert(chars, s) {
-        editor.insert(chars, function() {
-            editor.select(s.end + 1);
-        });
-        return false;
-    }
-
-    function trim(str) {
-        return str.replace(/^\s+|\s+$/g, "");
-    }
-
-    function _trim(str) {
-        return str.replace(/^\s+/, "");
-    }
-
-    function trim_(str) {
-        return str.replace(/\s+$/, "");
-    }
-
-    function escape(str) {
-        return str.replace(editor.escape, '\\$1');
-    }
-
-    function time(output) {
+    // Time
+    base.time = function(output) {
         var time = new Date(),
-            year = "" + time.getFullYear(),
-            month = "" + (time.getMonth() + 1),
-            date = "" + time.getDate(),
-            hour = "" + time.getHours(),
-            minute = "" + time.getMinutes(),
-            second = "" + time.getSeconds(),
-            millisecond = "" + time.getMilliseconds();
+            year = time.getFullYear(),
+            month = (time.getMonth() + 1),
+            date = time.getDate(),
+            hour = time.getHours(),
+            minute = time.getMinutes(),
+            second = time.getSeconds(),
+            millisecond = time.getMilliseconds();
         if (month < 10) month = '0' + month;
         if (date < 10) date = '0' + date;
         if (hour < 10) hour = '0' + hour;
@@ -317,38 +351,16 @@ var HTE = function(elem, o) {
         if (second < 10) second = '0' + second;
         if (millisecond < 10) millisecond = '0' + millisecond;
         var o = {
-            'Y': year,
-            'm': month,
-            'd': date,
-            'H': hour,
-            'i': minute,
-            's': second,
-            'u': millisecond
+            'Y': "" + year,
+            'm': "" + month,
+            'd': "" + date,
+            'H': "" + hour,
+            'i': "" + minute,
+            's': "" + second,
+            'u': "" + millisecond
         };
         return typeof output != "undefined" ? o[output] : o;
-    }
-
-    function list(type, placeholder) {
-        var s = editor.selection(),
-            list = type,
-            li = opt.LI,
-            list_ = list.split(' ')[0],
-            li_ = li.split(' ')[0], end;
-        if (s.value.length > 0) {
-            if (s.value == placeholder) {
-                editor.select(s.start, s.end);
-            } else {
-                editor.insert('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + s.value.replace(/\n/g, '</' + li_ + '>\n' + opt.tabSize + '<' + li + '>').replace(new RegExp('\\n(' + opt.tabSize + ')?<' + li + '><\\/' + li_ + '>\\n', 'g'), '\n</' + list_ + '>\n\n<' + list + '>\n') + '</' + li_ + '>\n</' + list_ + '>');
-            }
-        } else {
-            editor.insert('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n</' + list_ + '>', function() {
-                end = s.start + 1 + list.length + 2 + opt.tabSize.length + 1 + li.length + 1;
-                editor.select(end, end + placeholder.length, function() {
-                    editor.updateHistory();
-                });
-            });
-        }
-    }
+    };
 
     var opt = extend(defaults, o), nav = doc.createElement('span');
 
@@ -366,7 +378,7 @@ var HTE = function(elem, o) {
         release.href = '#esc:' + (new Date()).getTime();
         release.style.width = 0;
         release.style.height = 0;
-    editor.area.parentNode.insertBefore(release, null);
+    editor.area.parentNode.appendChild(release);
 
     base.button = function(key, data) {
         if (data.title === false) return;
@@ -430,7 +442,7 @@ var HTE = function(elem, o) {
         'strikethrough': {
             title: btn.strike,
             click: function() {
-                var t = time(),
+                var t = base.time(),
                     strike = opt.STRIKE;
                 strike = strike.replace(/%Y/g, t.Y).replace(/%m/g, t.m).replace(/%d/g, t.d).replace(/%H/g, t.H).replace(/%i/g, t.i).replace(/%s/g, t.s).replace(/%u/g, t.u);
                 editor.toggle('<' + strike + '>', '</' + strike.split(' ')[0] + '>');
@@ -535,7 +547,7 @@ var HTE = function(elem, o) {
                 T = T < 6 ? T + 1 : 0;
                 if (s.value.length > 0) {
                     if (!s.before.match(new RegExp(re + '$'))) {
-                        editor.wrap('<' + (T > 0 ? h.replace(/%d/g, T) : p) + tag_end, '</' + (T > 0 ? h_.replace(/%d/g, T) : p_) + '>', function() {
+                        editor.wrap(s_B + '<' + (T > 0 ? h.replace(/%d/g, T) : p) + tag_end, '</' + (T > 0 ? h_.replace(/%d/g, T) : p_) + '>\n\n', function() {
                             editor.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "", noop);
                             editor.replace(/\n+/g, ' ');
                         });
@@ -556,7 +568,7 @@ var HTE = function(elem, o) {
                     h_ = h_.replace(/%d/g, 1);
                     T = 1;
                     editor.area.value = trim_(s.before) + s_B + '<' + h + '>' + placeholder + '</' + h_ + '>\n\n' + _trim(s.after);
-                    end = s.before.length + s_B.length + 1 + h.length + 1;
+                    end = trim_(s.before).length + s_B.length + 1 + h.length + 1;
                     editor.select(end, end + placeholder.length, function() {
                         editor.updateHistory();
                     });
@@ -571,20 +583,13 @@ var HTE = function(elem, o) {
                     a_ = a.split(' ')[0],
                     placeholder = opt.placeholders.link_text,
                     title, url, end;
-                base.prompt(opt.prompts.link_title_title, opt.prompts.link_title, false, function(r) {
-                    title = r;
-                    base.prompt(opt.prompts.link_url_title, opt.prompts.link_url, true, function(r) {
-                        url = r;
-                        if (s.value.length === 0) {
-                            editor.insert('<' + a + ' href="' + url + '"' + (title !== "" ? ' title=\"' + title + '\"' : "") + '>' + placeholder + '</' + a_ + '>', function() {
-                                end = editor.selection().end;
-                                editor.select(end - placeholder.length - (a_.length + 3), end - (a_.length + 3), function() {
-                                    editor.updateHistory();
-                                });
-                            });
-                        } else {
-                            editor.wrap('<' + a + ' href="' + url + '"' + (title !== "" ? ' title=\"' + title + '\"' : "") + '>', '</' + a_ + '>');
-                        }
+                base.prompt(opt.prompts.link_url_title, opt.prompts.link_url, true, function(r) {
+                    url = r;
+                    base.prompt(opt.prompts.link_title_title, opt.prompts.link_title, false, function(r) {
+                        title = r;
+                        editor.wrap('<' + a + ' href="' + url + '"' + (title !== "" ? ' title=\"' + title + '\"' : "") + '>', '</' + a_ + '>', (s.value.length === 0 ? function() {
+                            editor.replace(/^/, placeholder);
+                        } : 1));
                     });
                 });
             }
@@ -604,11 +609,10 @@ var HTE = function(elem, o) {
                             ).replace(/[-+._]+/g, ' ')
                         ).toLowerCase().replace(/(?:^|\s)\S/g, function(a) {
                             return a.toUpperCase();
-                        }), end;
+                        });
                     alt = alt.indexOf('/') === -1 && r.indexOf('.') !== -1 ? alt : opt.placeholders.image_alt;
                     editor.area.value = clean_B + s_B + '<' + opt.IMG + ' alt="' + alt + '" src="' + r + '"' + suffix + '\n\n' + clean_A;
-                    end = clean_B.length + s_B.length + 1 + opt.IMG.length + 6 + alt.length + 7 + r.length + 1 + suffix.length + 2;
-                    editor.select(end, function() {
+                    editor.select(clean_B.length + s_B.length + 1 + opt.IMG.length + 6 + alt.length + 7 + r.length + 1 + suffix.length + 2, function() {
                         editor.updateHistory();
                     });
                 });
@@ -690,8 +694,7 @@ var HTE = function(elem, o) {
             k = e.keyCode,
             ctrl = e.ctrlKey,
             shift = e.shiftKey,
-            alt = e.altKey,
-            scroll = EA.scrollTop + parseInt(css(EA, 'line-height'), 10);
+            alt = e.altKey;
 
         win.setTimeout(function() {
             opt.keydown(e, base);
@@ -754,7 +757,6 @@ var HTE = function(elem, o) {
             return false;
         }
 
-        // `Tab` to indent
         if (k == 9) {
             // Auto close for HTML tags
             // Case `<div|>`
@@ -766,6 +768,7 @@ var HTE = function(elem, o) {
                 });
                 return false;
             }
+            // `Tab` to indent
             editor.indent(opt.tabSize);
             return false;
         }
@@ -844,7 +847,7 @@ var HTE = function(elem, o) {
             // `Shift + Enter` for "break"
             if (shift) {
                 editor.insert('<' + opt.BR + opt.emptyElementSuffix + '\n');
-                EA.scrollTop = scroll;
+                base.scroll();
                 return false;
             }
 
@@ -858,7 +861,7 @@ var HTE = function(elem, o) {
                         editor.updateHistory();
                     });
                 });
-                EA.scrollTop = scroll;
+                base.scroll();
                 return false;
             }
 
@@ -866,7 +869,7 @@ var HTE = function(elem, o) {
             if (s.after.match(new RegExp('^<\\/' + re_LI_ + '>')) && s.before.slice(-1) != '>') {
                 var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*$').exec(s.before);
                 editor.insert('</' + li_ + '>\n' + match[1] + '<' + li_ + match[2]);
-                EA.scrollTop = scroll;
+                base.scroll();
                 return false;
             }
 
@@ -874,9 +877,9 @@ var HTE = function(elem, o) {
 
             // Case `|</p>`
             if (s.after.match(new RegExp('^<\\/' + re_P_ + '>'))) {
-                var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_P_ + '(>| .*?>).*$').exec(s.before);
+                var match = new RegExp('(?:^|\\n?)([\\t ]*)<' + re_P_ + '(>| .*?>).*$').exec(s.before);
                 editor.insert('</' + p_ + '>\n' + match[1] + '<' + p_ + match[2]);
-                EA.scrollTop = scroll;
+                base.scroll();
                 return false;
             }
 
@@ -889,12 +892,12 @@ var HTE = function(elem, o) {
                         editor.updateHistory();
                     });
                 });
-                EA.scrollTop = scroll;
+                base.scroll();
                 return false;
             }
 
             editor.insert('\n' + indent);
-            EA.scrollTop = scroll;
+            base.scroll();
             return false;
 
         }
