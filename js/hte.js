@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.0.7
+ *  HTML TEXT EDITOR PLUGIN 1.0.8
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -172,6 +172,13 @@ var HTE = function(elem, o) {
         }
     }
 
+    var opt = extend(defaults, o), nav = doc.createElement('span');
+
+    // Escapes for `RegExp()`
+    var re_TAB = escape(opt.tabSize),
+        re_P_ = escape(opt.P.split(' ')[0]),
+        re_LI_ = escape(opt.LI.split(' ')[0]);
+
     // Base Modal
     base.modal = function(type, callback) {
         type = type || 'modal';
@@ -183,7 +190,7 @@ var HTE = function(elem, o) {
         };
         modal.className = 'custom-modal custom-modal-' + type;
         modal.innerHTML = '<div class="custom-modal-header custom-modal-' + type + '-header"></div><div class="custom-modal-content custom-modal-' + type + '-content"></div><div class="custom-modal-action custom-modal-' + type + '-action"></div>';
-        modal.style.visibility = "hidden";
+        modal.style.visibility = 'hidden';
         page.appendChild(overlay);
         page.appendChild(modal);
         win.setTimeout(function() {
@@ -194,7 +201,7 @@ var HTE = function(elem, o) {
             modal.style.left = '50%';
             modal.style.zIndex = '9999';
             modal.style.marginTop = (scroll - (h / 2)) + 'px';
-            modal.style.marginLeft = '-' + (w / 2) + 'px';
+            modal.style.marginLeft = (0 - (w / 2)) + 'px';
             modal.style.visibility = "";
             if (modal.offsetTop < 0) {
                 modal.style.top = 0;
@@ -362,13 +369,6 @@ var HTE = function(elem, o) {
         return typeof output != "undefined" ? o[output] : o;
     };
 
-    var opt = extend(defaults, o), nav = doc.createElement('span');
-
-    // Escapes for `RegExp()`
-    var re_TAB = escape(opt.tabSize),
-        re_P_ = escape(opt.P.split(' ')[0]),
-        re_LI_ = escape(opt.LI.split(' ')[0]);
-
     if (opt.toolbar) {
         nav.className = opt.toolbarClass;
         editor.area.parentNode.insertBefore(nav, opt.toolbarPosition == "before" ? editor.area : null);
@@ -394,16 +394,19 @@ var HTE = function(elem, o) {
             };
         if (data.title) a.title = data.title;
         if (data.position) {
-            nav.insertBefore(a, nav.children[data.position - 1]);
+            var pos = data.position < 0 ? data.position + nav.children.length + 1 : data.position - 1;
+            nav.insertBefore(a, nav.children[pos]);
         } else {
             nav.appendChild(a);
         }
     };
 
-    editor.toggle = function(open, close, callback) {
+    editor.toggle = function(open, close, callback, placeholder) {
         var s = editor.selection();
         if (s.before.slice(-open.length) != open && s.after.slice(0, close.length) != close) {
-            editor.wrap(open, close);
+            editor.wrap(open, close, (s.value.length === 0 && placeholder ? function() {
+                editor.replace(/^.*$/, placeholder === true ? opt.placeholders.text : placeholder);
+            } : 1));
         } else {
             var clean_B = s.before.slice(-open.length) == open ? s.before.substring(0, s.before.length - open.length) : s.before,
                 clean_A = s.after.substring(0, close.length) == close ? s.after.substring(close.length) : s.after;
@@ -422,21 +425,21 @@ var HTE = function(elem, o) {
             title: btn.bold,
             click: function() {
                 var strong = opt.STRONG;
-                editor.toggle('<' + strong + '>', '</' + strong.split(' ')[0] + '>');
+                editor.toggle('<' + strong + '>', '</' + strong.split(' ')[0] + '>', 1, true);
             }
         },
         'italic': {
             title: btn.italic,
             click: function() {
                 var em = opt.EM;
-                editor.toggle('<' + em + '>', '</' + em.split(' ')[0] + '>');
+                editor.toggle('<' + em + '>', '</' + em.split(' ')[0] + '>', 1, true);
             }
         },
         'underline': {
             title: btn.underline,
             click: function() {
                 var u = opt.U;
-                editor.toggle('<' + u + '>', '</' + u.split(' ')[0] + '>');
+                editor.toggle('<' + u + '>', '</' + u.split(' ')[0] + '>', 1, true);
             }
         },
         'strikethrough': {
@@ -445,7 +448,7 @@ var HTE = function(elem, o) {
                 var t = base.time(),
                     strike = opt.STRIKE;
                 strike = strike.replace(/%Y/g, t.Y).replace(/%m/g, t.m).replace(/%d/g, t.d).replace(/%H/g, t.H).replace(/%i/g, t.i).replace(/%s/g, t.s).replace(/%u/g, t.u);
-                editor.toggle('<' + strike + '>', '</' + strike.split(' ')[0] + '>');
+                editor.toggle('<' + strike + '>', '</' + strike.split(' ')[0] + '>', 1, true);
             }
         },
         'code': {
@@ -486,7 +489,7 @@ var HTE = function(elem, o) {
                         });
                     }
                 } else {
-                    editor.toggle(tag_open, tag_close);
+                    editor.toggle(tag_open, tag_close, 1, true);
                 }
             }
         },
@@ -520,12 +523,12 @@ var HTE = function(elem, o) {
                     quote = opt.QUOTE,
                     blockquote = opt.BLOCKQUOTE;
                 if (s.start === 0 || s.before.match(/\n$/)) {
-                    editor.toggle('<' + blockquote + '>', '</' + blockquote.split(' ')[0] + '>');
+                    editor.toggle('<' + blockquote + '>', '</' + blockquote.split(' ')[0] + '>', 1, true);
                 } else {
                     if (!s.before.match(new RegExp('<' + blockquote.split(' ')[0] + '(>| .*?>)$'))) {
-                        editor.toggle('<' + quote + '>', '</' + quote.split(' ')[0] + '>');
+                        editor.toggle('<' + quote + '>', '</' + quote.split(' ')[0] + '>', 1, true);
                     } else {
-                        editor.toggle('<' + blockquote + '>', '</' + blockquote.split(' ')[0] + '>');
+                        editor.toggle('<' + blockquote + '>', '</' + blockquote.split(' ')[0] + '>', 1, true);
                     }
                 }
             }
@@ -542,26 +545,26 @@ var HTE = function(elem, o) {
                     p_e_ = escape(p_),
                     re = '<\\/?(?:' + h_e_ + '|' + p_e_ + ')(>| .*?>)',
                     s_B = trim_(s.before.replace(new RegExp(re + '$'), "")).length > 0 ? '\n\n' : "",
-                    tag_end = s.value.match(new RegExp('^' + re)) ? new RegExp('^' + re).exec(s.value) : new RegExp(re + '$').exec(s.before), end;
+                    clean_B = trim_(s.before.replace(new RegExp(re + '$', 'g'), "")),
+                    clean_V = trim(s.value.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "").replace(/\n+/g, ' ')),
+                    clean_A = _trim(s.after.replace(new RegExp('^' + re, 'g'), "")),
+                    tag_end = s.value.match(new RegExp('^' + re)) ? new RegExp('^' + re).exec(s.value) : new RegExp(re + '$').exec(s.before), end, h_o, h_o_;
                 tag_end = tag_end ? tag_end[1] : '>';
                 T = T < 6 ? T + 1 : 0;
                 if (s.value.length > 0) {
                     if (!s.before.match(new RegExp(re + '$'))) {
-                        editor.wrap(s_B + '<' + (T > 0 ? h.replace(/%d/g, T) : p) + tag_end, '</' + (T > 0 ? h_.replace(/%d/g, T) : p_) + '>\n\n', function() {
-                            editor.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "", noop);
-                            editor.replace(/\n+/g, ' ');
-                        });
+                        h_o = h.replace(/%d/g, T);
+                        h_o_ = h_.replace(/%d/g, T);
+                        editor.area.value = clean_B + s_B + '<' + (T > 0 ? h_o : p) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>\n\n' + clean_A;
+                        end = clean_B.length + s_B.length + 1 + (T > 0 ? h_o.length : p.length) + tag_end.length;
                     } else {
-                        var clean_B = trim_(s.before.replace(new RegExp(re + '$', 'g'), "")),
-                            clean_V = trim(s.value.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "").replace(/\n+/g, ' ')),
-                            clean_A = _trim(s.after.replace(new RegExp('^' + re, 'g'), "")),
-                            h__ = h_.replace(/%d/g, T);
-                        editor.area.value = clean_B + s_B + '<' + (T > 0 ? h__ : p_) + tag_end + clean_V + '</' + (T > 0 ? h__ : p_) + '>\n\n' + clean_A;
-                        end = clean_B.length + s_B.length + 1 + (T > 0 ? h__.length : p_.length) + tag_end.length;
-                        editor.select(end, end + clean_V.length, function() {
-                            editor.updateHistory();
-                        });
+                        h_o_ = h_.replace(/%d/g, T);
+                        editor.area.value = clean_B + s_B + '<' + (T > 0 ? h_o_ : p_) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>\n\n' + clean_A;
+                        end = clean_B.length + s_B.length + 1 + (T > 0 ? h_o_.length : p_.length) + tag_end.length;
                     }
+                    editor.select(end, end + clean_V.length, function() {
+                        editor.updateHistory();
+                    });
                 } else {
                     var placeholder = opt.placeholders.heading_text;
                     h = h.replace(/%d/g, 1);
@@ -634,14 +637,14 @@ var HTE = function(elem, o) {
             title: btn.superscript,
             click: function() {
                 var sup = opt.SUP;
-                editor.toggle('<' + sup + '>', '</' + sup.split(' ')[0] + '>');
+                editor.toggle('<' + sup + '>', '</' + sup.split(' ')[0] + '>', 1, true);
             }
         },
         'subscript': {
             title: btn.subscript,
             click: function() {
                 var sub = opt.SUB;
-                editor.toggle('<' + sub + '>', '</' + sub.split(' ')[0] + '>');
+                editor.toggle('<' + sub + '>', '</' + sub.split(' ')[0] + '>', 1, true);
             }
         },
         'ellipsis-h': {
