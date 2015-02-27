@@ -861,7 +861,7 @@ var HTE = function(elem, o) {
         // `Enter` key was pressed
         if (k == 13) {
 
-            // `Alt` + `Enter` for creating carriage return arrow
+            // `Alt + Enter` for creating carriage return arrow
             if (alt && sv.length === 0) return _INSERT(_u21B5), false;
 
             // `Ctrl + Enter` for "paragraph"
@@ -1031,7 +1031,7 @@ var HTE = function(elem, o) {
                     }
                 }
 
-                // `Alt` + `Arrow Key(s)` for creating arrows
+                // `Alt + Arrow Key(s)` for creating arrows
                 if (k == 37) return _INSERT(_u2190), false;
                 if (k == 38) return _INSERT(_u2191), false;
                 if (k == 39) return _INSERT(_u2192), false;
