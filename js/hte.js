@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.0.8
+ *  HTML TEXT EDITOR PLUGIN 1.1.0
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -20,7 +20,36 @@ var HTE = function(elem, o) {
     if (typeof o.prompt != "undefined") o.prompts = o.prompt;
     if (typeof o.placeholder != "undefined") o.placeholders = o.placeholder;
 
-    var base = this,
+    var _u2018 = '\u2018', // left single quotation mark
+        _u2019 = '\u2019', // right single quotation mark
+        _u201C = '\u201C', // left double quotation mark
+        _u201D = '\u201D', // right double quotation mark
+        _u2013 = '\u2013', // N-dash
+        _u2014 = '\u2014', // M-dash
+        _u2026 = '\u2026', // horizontal ellipsis
+        _u00A6 = '\u00A6', // broken bar
+        _u00A9 = '\u00A9', // copyright sign
+        _u2117 = '\u2117', // sound recording copyright sign
+        _u2120 = '\u2120', // service mark
+        _u2122 = '\u2122', // trade mark sign
+        _u00AE = '\u00AE', // registered sign
+        _u00B1 = '\u00B1', // plus-minus sign
+        _u00F7 = '\u00F7', // division sign
+        _u00B0 = '\u00B0', // degree sign
+        _u2039 = '\u2039', // left pointing single angle quotation mark
+        _u203A = '\u203A', // right pointing single angle quotation mark
+        _u00AB = '\u00AB', // left pointing double angle quotation mark
+        _u00BB = '\u00BB', // right pointing double angle quotation mark
+        _u2264 = '\u2264', // less than or equal to
+        _u2265 = '\u2265', // greater than or equal to
+        _u2260 = '\u2260', // not equal to
+        _u2190 = '\u2190', // leftwards arrow
+        _u2192 = '\u2192', // rightwards arrow
+        _u2191 = '\u2191', // upwards arrow
+        _u2193 = '\u2193', // downwards arrow
+        _u21B5 = '\u21B5', // carriage return arrow
+
+        base = this,
         win = window,
         doc = document,
         editor = new Editor(elem),
@@ -69,7 +98,7 @@ var HTE = function(elem, o) {
                 code: 'Code',
                 paragraph: 'Paragraph',
                 quote: 'Quote',
-                heading: 'H1 \u2013 H6',
+                heading: 'H1 ' + _u2013 + ' H6',
                 link: 'Link',
                 image: 'Image',
                 ol: 'Ordered List',
@@ -79,7 +108,7 @@ var HTE = function(elem, o) {
                 redo: 'Redo'
             },
             prompts: {
-                link_title: 'link title goes here\u2026',
+                link_title: 'link title goes here' + _u2026,
                 link_title_title: 'Link Title',
                 link_url: 'http://',
                 link_url_title: 'Link URL',
@@ -87,7 +116,7 @@ var HTE = function(elem, o) {
                 image_url_title: 'Image URL'
             },
             placeholders: {
-                text: 'text goes here\u2026',
+                text: 'text goes here' + _u2026,
                 heading_text: 'Heading',
                 link_text: 'link text',
                 list_ul_text: 'List Item',
@@ -101,7 +130,18 @@ var HTE = function(elem, o) {
 
     var overlay = doc.createElement('div'),
         modal = doc.createElement('div'),
-        noop = function() {};
+        noop = function() {},
+
+        // Rewrite some methods for better JS minification
+        _AREA = elem,
+        _INDENT = editor.indent,
+        _INSERT = editor.insert,
+        _OUTDENT = editor.outdent,
+        _REPLACE = editor.replace,
+        _SELECT = editor.select,
+        _SELECTION = editor.selection,
+        _UPDATE_HISTORY = editor.updateHistory,
+        _WRAP = editor.wrap;
 
     function extend(target, source) {
         target = target || {};
@@ -127,9 +167,9 @@ var HTE = function(elem, o) {
         return value;
     }
 
-    function insert(chars, s) {
-        editor.insert(chars, function() {
-            editor.select(s.end + 1);
+    function insert(str, s) {
+        _INSERT(str, function() {
+            _SELECT(s.end + 1, _UPDATE_HISTORY);
         });
         return false;
     }
@@ -151,28 +191,27 @@ var HTE = function(elem, o) {
     }
 
     function list(type, placeholder) {
-        var s = editor.selection(),
+        var s = _SELECTION(),
             list = type,
             li = opt.LI,
             list_ = list.split(' ')[0],
             li_ = li.split(' ')[0], end;
         if (s.value.length > 0) {
             if (s.value == placeholder) {
-                editor.select(s.start, s.end);
+                _SELECT(s.start, s.end);
             } else {
-                editor.insert('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + s.value.replace(/\n/g, '</' + li_ + '>\n' + opt.tabSize + '<' + li + '>').replace(new RegExp('\\n(' + opt.tabSize + ')?<' + li + '><\\/' + li_ + '>\\n', 'g'), '\n</' + list_ + '>\n\n<' + list + '>\n') + '</' + li_ + '>\n</' + list_ + '>');
+                _INSERT('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + s.value.replace(/\n/g, '</' + li_ + '>\n' + opt.tabSize + '<' + li + '>').replace(new RegExp('\\n(' + opt.tabSize + ')?<' + li + '><\\/' + li_ + '>\\n', 'g'), '\n</' + list_ + '>\n\n<' + list + '>\n') + '</' + li_ + '>\n</' + list_ + '>');
             }
         } else {
-            editor.insert('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n</' + list_ + '>', function() {
+            _INSERT('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n</' + list_ + '>', function() {
                 end = s.start + 1 + list.length + 2 + opt.tabSize.length + 1 + li.length + 1;
-                editor.select(end, end + placeholder.length, function() {
-                    editor.updateHistory();
-                });
+                _SELECT(end, end + placeholder.length, _UPDATE_HISTORY);
             });
         }
     }
 
-    var opt = extend(defaults, o), nav = doc.createElement('span');
+    var opt = extend(defaults, o),
+        nav = doc.createElement('span');
 
     // Escapes for `RegExp()`
     var re_TAB = escape(opt.tabSize),
@@ -220,8 +259,8 @@ var HTE = function(elem, o) {
         if (overlay) doc.body.removeChild(overlay);
         if (modal) doc.body.removeChild(modal);
         if (select && select !== false) {
-            var s = editor.selection();
-            editor.select(s.start, s.end);
+            var s = _SELECTION();
+            _SELECT(s.start, s.end);
         }
     };
 
@@ -332,11 +371,10 @@ var HTE = function(elem, o) {
 
     // Scroll the `<textarea>`
     base.scroll = function(pos, callback) {
-        var EA = editor.area;
         if (typeof pos == "number") {
-            EA.scrollTop = pos;
+            _AREA.scrollTop = pos;
         } else {
-            EA.scrollTop += parseInt(css(EA, 'line-height'), 10);
+            _AREA.scrollTop += parseInt(css(_AREA, 'line-height'), 10);
         }
         if (typeof callback == "function") callback();
     };
@@ -371,16 +409,17 @@ var HTE = function(elem, o) {
 
     if (opt.toolbar) {
         nav.className = opt.toolbarClass;
-        editor.area.parentNode.insertBefore(nav, opt.toolbarPosition == "before" ? editor.area : null);
+        _AREA.parentNode.insertBefore(nav, opt.toolbarPosition == "before" ? _AREA : null);
     }
 
     var release = doc.createElement('a');
         release.href = '#esc:' + (new Date()).getTime();
         release.style.width = 0;
         release.style.height = 0;
-    editor.area.parentNode.appendChild(release);
+    _AREA.parentNode.appendChild(release);
 
     base.button = function(key, data) {
+        data = data || {};
         if (data.title === false) return;
         var a = doc.createElement('a');
             a.className = opt.buttonClassPrefix + key;
@@ -388,9 +427,11 @@ var HTE = function(elem, o) {
             a.setAttribute('tabindex', -1);
             a.innerHTML = data.text ? data.text.replace(/%s/g, key) : '<i class="' + opt.iconClassPrefix + key + '"></i>';
             a.onclick = function(e) {
-                data.click(e, base);
-                opt.click(e, base, this.hash.replace('#', ""));
-                return false;
+                if (typeof data.click == "function") {
+                    data.click(e, base);
+                    opt.click(e, base, this.hash.replace('#', ""));
+                    return false;
+                }
             };
         if (data.title) a.title = data.title;
         if (data.position) {
@@ -402,377 +443,366 @@ var HTE = function(elem, o) {
     };
 
     editor.toggle = function(open, close, callback, placeholder) {
-        var s = editor.selection();
+        var s = _SELECTION();
         if (s.before.slice(-open.length) != open && s.after.slice(0, close.length) != close) {
-            editor.wrap(open, close, (s.value.length === 0 && placeholder ? function() {
-                editor.replace(/^.*$/, placeholder === true ? opt.placeholders.text : placeholder);
+            _WRAP(open, close, (s.value.length === 0 && placeholder ? function() {
+                _REPLACE(/^.*$/, placeholder === true ? opt.placeholders.text : placeholder);
             } : 1));
         } else {
-            var clean_B = s.before.slice(-open.length) == open ? s.before.substring(0, s.before.length - open.length) : s.before,
-                clean_A = s.after.substring(0, close.length) == close ? s.after.substring(close.length) : s.after;
-            editor.area.value = clean_B + s.value + clean_A;
-            editor.select(clean_B.length, clean_B.length + s.value.length, function() {
-                editor.updateHistory();
-            });
+            var clean_B = s.before.slice(-open.length) == open ? s.before.slice(0, -open.length) : s.before,
+                clean_A = s.after.slice(0, close.length) == close ? s.after.slice(close.length) : s.after;
+            _AREA.value = clean_B + s.value + clean_A;
+            _SELECT(clean_B.length, clean_B.length + s.value.length, _UPDATE_HISTORY);
         }
         if (typeof callback == "function") callback();
     };
 
-    var T = 0, btn = opt.buttons;
+    var _TOGGLE = editor.toggle, T = 0, btn = opt.buttons;
 
-    var toolbars = {
-        'bold': {
-            title: btn.bold,
-            click: function() {
-                var strong = opt.STRONG;
-                editor.toggle('<' + strong + '>', '</' + strong.split(' ')[0] + '>', 1, true);
-            }
-        },
-        'italic': {
-            title: btn.italic,
-            click: function() {
-                var em = opt.EM;
-                editor.toggle('<' + em + '>', '</' + em.split(' ')[0] + '>', 1, true);
-            }
-        },
-        'underline': {
-            title: btn.underline,
-            click: function() {
-                var u = opt.U;
-                editor.toggle('<' + u + '>', '</' + u.split(' ')[0] + '>', 1, true);
-            }
-        },
-        'strikethrough': {
-            title: btn.strike,
-            click: function() {
-                var t = base.time(),
-                    strike = opt.STRIKE;
-                strike = strike.replace(/%Y/g, t.Y).replace(/%m/g, t.m).replace(/%d/g, t.d).replace(/%H/g, t.H).replace(/%i/g, t.i).replace(/%s/g, t.s).replace(/%u/g, t.u);
-                editor.toggle('<' + strike + '>', '</' + strike.split(' ')[0] + '>', 1, true);
-            }
-        },
-        'code': {
-            title: btn.code,
-            click: function() {
-                var v = editor.selection().value,
-                    code = opt.CODE,
-                    pre = opt.PRE,
-                    code_ = code.split(' ')[0],
-                    pre_ = pre.split(' ')[0],
-                    is_inline = v.indexOf('\n') === -1,
-                    tag_open = is_inline ? '<' + code + '>' : '<' + pre + '><' + code + '>',
-                    tag_close = is_inline ? '</' + code_ + '>' : '</' + code_ + '></' + pre_ + '>';
-                if (v.length > 0) {
-                    var s = editor.selection(),
-                        clean_B = s.before,
-                        clean_A = s.after,
-                        clean_V = s.value,
-                        code_e_ = escape(code_),
-                        pre_e_ = escape(pre_);
-                    if (clean_B.match(new RegExp('(<' + pre_e_ + '(>| .*?>))?<' + code_e_ + '(>| .*?>)$')) && clean_A.match(new RegExp('^<\\/' + code_e_ + '>(<\\/' + pre_e_ + '>)?'))) {
-                        clean_B = clean_B.replace(new RegExp('(<' + pre_e_ + '(>| .*?>))?<' + code_e_ + '(>| .*?>)$'), "");
-                        clean_A = clean_A.replace(new RegExp('^<\\/' + code_e_ + '>(<\\/' + pre_e_ + '>)?'), "");
-                        if (opt.autoEncodeHTML) {
-                            clean_V = clean_V.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+    if (typeof btn == "object") {
+
+        var toolbars = {
+            'bold': {
+                title: btn.bold,
+                click: function() {
+                    var strong = opt.STRONG;
+                    _TOGGLE('<' + strong + '>', '</' + strong.split(' ')[0] + '>', 1, true);
+                }
+            },
+            'italic': {
+                title: btn.italic,
+                click: function() {
+                    var em = opt.EM;
+                    _TOGGLE('<' + em + '>', '</' + em.split(' ')[0] + '>', 1, true);
+                }
+            },
+            'underline': {
+                title: btn.underline,
+                click: function() {
+                    var u = opt.U;
+                    _TOGGLE('<' + u + '>', '</' + u.split(' ')[0] + '>', 1, true);
+                }
+            },
+            'strikethrough': {
+                title: btn.strike,
+                click: function() {
+                    var t = base.time(),
+                        strike = opt.STRIKE;
+                    strike = strike.replace(/%Y/g, t.Y).replace(/%m/g, t.m).replace(/%d/g, t.d).replace(/%H/g, t.H).replace(/%i/g, t.i).replace(/%s/g, t.s).replace(/%u/g, t.u);
+                    _TOGGLE('<' + strike + '>', '</' + strike.split(' ')[0] + '>', 1, true);
+                }
+            },
+            'code': {
+                title: btn.code,
+                click: function() {
+                    var v = _SELECTION().value,
+                        code = opt.CODE,
+                        pre = opt.PRE,
+                        code_ = code.split(' ')[0],
+                        pre_ = pre.split(' ')[0],
+                        is_inline = v.indexOf('\n') === -1,
+                        tag_open = is_inline ? '<' + code + '>' : '<' + pre + '><' + code + '>',
+                        tag_close = is_inline ? '</' + code_ + '>' : '</' + code_ + '></' + pre_ + '>';
+                    if (v.length > 0) {
+                        var s = _SELECTION(),
+                            clean_B = s.before,
+                            clean_A = s.after,
+                            clean_V = s.value,
+                            code_e_ = escape(code_),
+                            pre_e_ = escape(pre_);
+                        if (clean_B.match(new RegExp('(<' + pre_e_ + '(>| .*?>))?<' + code_e_ + '(>| .*?>)$')) && clean_A.match(new RegExp('^<\\/' + code_e_ + '>(<\\/' + pre_e_ + '>)?'))) {
+                            clean_B = clean_B.replace(new RegExp('(<' + pre_e_ + '(>| .*?>))?<' + code_e_ + '(>| .*?>)$'), "");
+                            clean_A = clean_A.replace(new RegExp('^<\\/' + code_e_ + '>(<\\/' + pre_e_ + '>)?'), "");
+                            if (opt.autoEncodeHTML) {
+                                clean_V = clean_V.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+                            }
+                            _AREA.value = clean_B + clean_V + clean_A;
+                            _SELECT(clean_B.length, clean_B.length + clean_V.length, _UPDATE_HISTORY);
+                        } else {
+                            if (opt.autoEncodeHTML) {
+                                clean_V = clean_V.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                            }
+                            _AREA.value = clean_B + tag_open + clean_V + tag_close + clean_A;
+                            _SELECT(clean_B.length + tag_open.length, clean_B.length + clean_V.length + tag_open.length, _UPDATE_HISTORY);
                         }
-                        editor.area.value = clean_B + clean_V + clean_A;
-                        editor.select(clean_B.length, clean_B.length + clean_V.length, function() {
-                            editor.updateHistory();
-                        });
                     } else {
-                        if (opt.autoEncodeHTML) {
-                            clean_V = clean_V.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+                        _TOGGLE(tag_open, tag_close, 1, true);
+                    }
+                }
+            },
+            'paragraph': {
+                title: btn.paragraph,
+                click: function() {
+                    var v = _SELECTION().value,
+                        p = opt.P,
+                        p_ = p.split(' ')[0],
+                        p_e_ = escape(p_);
+                    if (v.length > 0) {
+                        if (new RegExp('^<' + p_e_ + '(>| .*?>)|<\\/' + p_e_ + '>$').test(v)) {
+                            _REPLACE(new RegExp('<' + p_e_ + '(>| .*?>)([\\s\\S]*?)<\\/' + p_e_ + '>', 'g'), '$2');
+                        } else {
+                            _REPLACE(/^/, '<' + p + '>', noop);
+                            _REPLACE(/$/, '</' + p_ + '>', noop);
+                            _REPLACE(/\n/g, '</' + p_ + '>\n<' + p + '>', noop);
+                            _REPLACE(new RegExp('<' + p_ + '(>| .*?>)<\\/' + p_ + '>', 'g'), "", noop);
+                            _REPLACE(new RegExp('(<' + p_ + '(>| .*?>))+', 'g'), '$1', noop);
+                            _REPLACE(new RegExp('(<\\/' + p_ + '>)+', 'g'), '$1');
                         }
-                        editor.area.value = clean_B + tag_open + clean_V + tag_close + clean_A;
-                        editor.select(clean_B.length + tag_open.length, clean_B.length + clean_V.length + tag_open.length, function() {
-                            editor.updateHistory();
+                    } else {
+                        _TOGGLE('<' + p + '>', '</' + p_ + '>');
+                    }
+                }
+            },
+            'quote-right': {
+                title: btn.quote,
+                click: function() {
+                    var s = _SELECTION(),
+                        quote = opt.QUOTE,
+                        blockquote = opt.BLOCKQUOTE;
+                    if (s.start === 0 || s.before.match(/\n$/)) {
+                        _TOGGLE('<' + blockquote + '>', '</' + blockquote.split(' ')[0] + '>', 1, true);
+                    } else {
+                        if (!s.before.match(new RegExp('<' + blockquote.split(' ')[0] + '(>| .*?>)$'))) {
+                            _TOGGLE('<' + quote + '>', '</' + quote.split(' ')[0] + '>', 1, true);
+                        } else {
+                            _TOGGLE('<' + blockquote + '>', '</' + blockquote.split(' ')[0] + '>', 1, true);
+                        }
+                    }
+                }
+            },
+            'header': {
+                title: btn.heading,
+                click: function() {
+                    var s = _SELECTION(),
+                        h = opt.H_,
+                        h_ = h.split(' ')[0],
+                        h_e_ = escape(h_).replace(/%d/g, '[1-6]'),
+                        p = opt.P,
+                        p_ = p.split(' ')[0],
+                        p_e_ = escape(p_),
+                        re = '<\\/?(?:' + h_e_ + '|' + p_e_ + ')(>| .*?>)',
+                        s_B = trim_(s.before.replace(new RegExp(re + '$'), "")).length > 0 ? '\n\n' : "",
+                        clean_B = trim_(s.before.replace(new RegExp(re + '$', 'g'), "")),
+                        clean_V = trim(s.value.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "").replace(/\n+/g, ' ')),
+                        clean_A = _trim(s.after.replace(new RegExp('^' + re, 'g'), "")),
+                        tag_end = s.value.match(new RegExp('^' + re)) ? new RegExp('^' + re).exec(s.value) : new RegExp(re + '$').exec(s.before), end, h_o, h_o_;
+                    tag_end = tag_end ? tag_end[1] : '>';
+                    T = T < 6 ? T + 1 : 0;
+                    if (s.value.length > 0) {
+                        if (!s.before.match(new RegExp(re + '$'))) {
+                            h_o = h.replace(/%d/g, T);
+                            h_o_ = h_.replace(/%d/g, T);
+                            _AREA.value = clean_B + s_B + '<' + (T > 0 ? h_o : p) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>\n\n' + clean_A;
+                            end = clean_B.length + s_B.length + 1 + (T > 0 ? h_o.length : p.length) + tag_end.length;
+                        } else {
+                            h_o_ = h_.replace(/%d/g, T);
+                            _AREA.value = clean_B + s_B + '<' + (T > 0 ? h_o_ : p_) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>\n\n' + clean_A;
+                            end = clean_B.length + s_B.length + 1 + (T > 0 ? h_o_.length : p_.length) + tag_end.length;
+                        }
+                        _SELECT(end, end + clean_V.length, _UPDATE_HISTORY);
+                    } else {
+                        var placeholder = opt.placeholders.heading_text;
+                        h = h.replace(/%d/g, 1);
+                        h_ = h_.replace(/%d/g, 1);
+                        T = 1;
+                        _AREA.value = trim_(s.before) + s_B + '<' + h + '>' + placeholder + '</' + h_ + '>\n\n' + _trim(s.after);
+                        end = trim_(s.before).length + s_B.length + 1 + h.length + 1;
+                        _SELECT(end, end + placeholder.length, _UPDATE_HISTORY);
+                    }
+                }
+            },
+            'link': {
+                title: btn.link,
+                click: function() {
+                    var s = _SELECTION(),
+                        a = opt.A,
+                        a_ = a.split(' ')[0],
+                        placeholder = opt.placeholders.link_text,
+                        title, url, end;
+                    base.prompt(opt.prompts.link_url_title, opt.prompts.link_url, true, function(r) {
+                        url = r;
+                        base.prompt(opt.prompts.link_title_title, opt.prompts.link_title, false, function(r) {
+                            title = r;
+                            _WRAP('<' + a + ' href="' + url + '"' + (title !== "" ? ' title=\"' + title + '\"' : "") + '>', '</' + a_ + '>', (s.value.length === 0 ? function() {
+                                _REPLACE(/^/, placeholder);
+                            } : 1));
                         });
-                    }
-                } else {
-                    editor.toggle(tag_open, tag_close, 1, true);
-                }
-            }
-        },
-        'paragraph': {
-            title: btn.paragraph,
-            click: function() {
-                var v = editor.selection().value,
-                    p = opt.P,
-                    p_ = p.split(' ')[0],
-                    p_e_ = escape(p_);
-                if (v.length > 0) {
-                    if (new RegExp('^<' + p_e_ + '(>| .*?>)|<\\/' + p_e_ + '>$').test(v)) {
-                        editor.replace(new RegExp('<' + p_e_ + '(>| .*?>)([\\s\\S]*?)<\\/' + p_e_ + '>', 'g'), '$2');
-                    } else {
-                        editor.replace(/^/, '<' + p + '>', noop);
-                        editor.replace(/$/, '</' + p_ + '>', noop);
-                        editor.replace(/\n/g, '</' + p_ + '>\n<' + p + '>', noop);
-                        editor.replace(new RegExp('<' + p_ + '(>| .*?>)<\\/' + p_ + '>', 'g'), "", noop);
-                        editor.replace(new RegExp('(<' + p_ + '(>| .*?>))+', 'g'), '$1', noop);
-                        editor.replace(new RegExp('(<\\/' + p_ + '>)+', 'g'), '$1');
-                    }
-                } else {
-                    editor.toggle('<' + p + '>', '</' + p_ + '>');
-                }
-            }
-        },
-        'quote-right': {
-            title: btn.quote,
-            click: function() {
-                var s = editor.selection(),
-                    quote = opt.QUOTE,
-                    blockquote = opt.BLOCKQUOTE;
-                if (s.start === 0 || s.before.match(/\n$/)) {
-                    editor.toggle('<' + blockquote + '>', '</' + blockquote.split(' ')[0] + '>', 1, true);
-                } else {
-                    if (!s.before.match(new RegExp('<' + blockquote.split(' ')[0] + '(>| .*?>)$'))) {
-                        editor.toggle('<' + quote + '>', '</' + quote.split(' ')[0] + '>', 1, true);
-                    } else {
-                        editor.toggle('<' + blockquote + '>', '</' + blockquote.split(' ')[0] + '>', 1, true);
-                    }
-                }
-            }
-        },
-        'header': {
-            title: btn.heading,
-            click: function() {
-                var s = editor.selection(),
-                    h = opt.H_,
-                    h_ = h.split(' ')[0],
-                    h_e_ = escape(h_).replace(/%d/g, '[1-6]'),
-                    p = opt.P,
-                    p_ = p.split(' ')[0],
-                    p_e_ = escape(p_),
-                    re = '<\\/?(?:' + h_e_ + '|' + p_e_ + ')(>| .*?>)',
-                    s_B = trim_(s.before.replace(new RegExp(re + '$'), "")).length > 0 ? '\n\n' : "",
-                    clean_B = trim_(s.before.replace(new RegExp(re + '$', 'g'), "")),
-                    clean_V = trim(s.value.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "").replace(/\n+/g, ' ')),
-                    clean_A = _trim(s.after.replace(new RegExp('^' + re, 'g'), "")),
-                    tag_end = s.value.match(new RegExp('^' + re)) ? new RegExp('^' + re).exec(s.value) : new RegExp(re + '$').exec(s.before), end, h_o, h_o_;
-                tag_end = tag_end ? tag_end[1] : '>';
-                T = T < 6 ? T + 1 : 0;
-                if (s.value.length > 0) {
-                    if (!s.before.match(new RegExp(re + '$'))) {
-                        h_o = h.replace(/%d/g, T);
-                        h_o_ = h_.replace(/%d/g, T);
-                        editor.area.value = clean_B + s_B + '<' + (T > 0 ? h_o : p) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>\n\n' + clean_A;
-                        end = clean_B.length + s_B.length + 1 + (T > 0 ? h_o.length : p.length) + tag_end.length;
-                    } else {
-                        h_o_ = h_.replace(/%d/g, T);
-                        editor.area.value = clean_B + s_B + '<' + (T > 0 ? h_o_ : p_) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>\n\n' + clean_A;
-                        end = clean_B.length + s_B.length + 1 + (T > 0 ? h_o_.length : p_.length) + tag_end.length;
-                    }
-                    editor.select(end, end + clean_V.length, function() {
-                        editor.updateHistory();
-                    });
-                } else {
-                    var placeholder = opt.placeholders.heading_text;
-                    h = h.replace(/%d/g, 1);
-                    h_ = h_.replace(/%d/g, 1);
-                    T = 1;
-                    editor.area.value = trim_(s.before) + s_B + '<' + h + '>' + placeholder + '</' + h_ + '>\n\n' + _trim(s.after);
-                    end = trim_(s.before).length + s_B.length + 1 + h.length + 1;
-                    editor.select(end, end + placeholder.length, function() {
-                        editor.updateHistory();
                     });
                 }
-            }
-        },
-        'link': {
-            title: btn.link,
-            click: function() {
-                var s = editor.selection(),
-                    a = opt.A,
-                    a_ = a.split(' ')[0],
-                    placeholder = opt.placeholders.link_text,
-                    title, url, end;
-                base.prompt(opt.prompts.link_url_title, opt.prompts.link_url, true, function(r) {
-                    url = r;
-                    base.prompt(opt.prompts.link_title_title, opt.prompts.link_title, false, function(r) {
-                        title = r;
-                        editor.wrap('<' + a + ' href="' + url + '"' + (title !== "" ? ' title=\"' + title + '\"' : "") + '>', '</' + a_ + '>', (s.value.length === 0 ? function() {
-                            editor.replace(/^/, placeholder);
-                        } : 1));
+            },
+            'image': {
+                title: btn.image,
+                click: function() {
+                    base.prompt(opt.prompts.image_url_title, opt.prompts.image_url, true, function(r) {
+                        var s = _SELECTION(),
+                            clean_B = trim_(s.before),
+                            clean_A = _trim(s.after),
+                            s_B = clean_B.length > 0 ? '\n\n' : "",
+                            suffix = opt.emptyElementSuffix,
+                            alt = decodeURIComponent(
+                                r.substring(
+                                    r.lastIndexOf('/') + 1, r.lastIndexOf('.')
+                                ).replace(/[-+._]+/g, ' ')
+                            ).toLowerCase().replace(/(?:^|\s)\S/g, function(a) {
+                                return a.toUpperCase();
+                            });
+                        alt = alt.indexOf('/') === -1 && r.indexOf('.') !== -1 ? alt : opt.placeholders.image_alt;
+                        _AREA.value = clean_B + s_B + '<' + opt.IMG + ' alt="' + alt + '" src="' + r + '"' + suffix + '\n\n' + clean_A;
+                        _SELECT(clean_B.length + s_B.length + 1 + opt.IMG.length + 6 + alt.length + 7 + r.length + 1 + suffix.length + 2, _UPDATE_HISTORY);
                     });
-                });
-            }
-        },
-        'image': {
-            title: btn.image,
-            click: function() {
-                base.prompt(opt.prompts.image_url_title, opt.prompts.image_url, true, function(r) {
-                    var s = editor.selection(),
+                }
+            },
+            'list-ol': {
+                title: btn.ol,
+                click: function() {
+                    list(opt.OL, opt.placeholders.list_ol_text);
+                }
+            },
+            'list-ul': {
+                title: btn.ul,
+                click: function() {
+                    list(opt.UL, opt.placeholders.list_ul_text);
+                }
+            },
+            'superscript': {
+                title: btn.superscript,
+                click: function() {
+                    var sup = opt.SUP;
+                    _TOGGLE('<' + sup + '>', '</' + sup.split(' ')[0] + '>', 1, true);
+                }
+            },
+            'subscript': {
+                title: btn.subscript,
+                click: function() {
+                    var sub = opt.SUB;
+                    _TOGGLE('<' + sub + '>', '</' + sub.split(' ')[0] + '>', 1, true);
+                }
+            },
+            'ellipsis-h': {
+                title: btn.rule,
+                click: function() {
+                    var s = _SELECTION(),
                         clean_B = trim_(s.before),
                         clean_A = _trim(s.after),
                         s_B = clean_B.length > 0 ? '\n\n' : "",
-                        suffix = opt.emptyElementSuffix,
-                        alt = decodeURIComponent(
-                            r.substring(
-                                r.lastIndexOf('/') + 1, r.lastIndexOf('.')
-                            ).replace(/[-+._]+/g, ' ')
-                        ).toLowerCase().replace(/(?:^|\s)\S/g, function(a) {
-                            return a.toUpperCase();
-                        });
-                    alt = alt.indexOf('/') === -1 && r.indexOf('.') !== -1 ? alt : opt.placeholders.image_alt;
-                    editor.area.value = clean_B + s_B + '<' + opt.IMG + ' alt="' + alt + '" src="' + r + '"' + suffix + '\n\n' + clean_A;
-                    editor.select(clean_B.length + s_B.length + 1 + opt.IMG.length + 6 + alt.length + 7 + r.length + 1 + suffix.length + 2, function() {
-                        editor.updateHistory();
-                    });
-                });
+                        hr = opt.HR,
+                        suffix = opt.emptyElementSuffix;
+                    _AREA.value = clean_B + s_B + '<' + hr + suffix + '\n\n' + clean_A;
+                    _SELECT(clean_B.length + s_B.length + + 1 + hr.length + suffix.length + 2, _UPDATE_HISTORY);
+                }
+            },
+            'undo': {
+                title: btn.undo,
+                click: function() {
+                    editor.undo();
+                }
+            },
+            'repeat': {
+                title: btn.redo,
+                click: function() {
+                    editor.redo();
+                }
             }
-        },
-        'list-ol': {
-            title: btn.ol,
-            click: function() {
-                list(opt.OL, opt.placeholders.list_ol_text);
-            }
-        },
-        'list-ul': {
-            title: btn.ul,
-            click: function() {
-                list(opt.UL, opt.placeholders.list_ul_text);
-            }
-        },
-        'superscript': {
-            title: btn.superscript,
-            click: function() {
-                var sup = opt.SUP;
-                editor.toggle('<' + sup + '>', '</' + sup.split(' ')[0] + '>', 1, true);
-            }
-        },
-        'subscript': {
-            title: btn.subscript,
-            click: function() {
-                var sub = opt.SUB;
-                editor.toggle('<' + sub + '>', '</' + sub.split(' ')[0] + '>', 1, true);
-            }
-        },
-        'ellipsis-h': {
-            title: btn.rule,
-            click: function() {
-                var s = editor.selection(),
-                    clean_B = trim_(s.before),
-                    clean_A = _trim(s.after),
-                    s_B = clean_B.length > 0 ? '\n\n' : "",
-                    hr = opt.HR,
-                    suffix = opt.emptyElementSuffix;
-                editor.area.value = clean_B + s_B + '<' + hr + suffix + '\n\n' + clean_A;
-                editor.select(clean_B.length + s_B.length + + 1 + hr.length + suffix.length + 2, function() {
-                    editor.updateHistory();
-                });
-            }
-        },
-        'undo': {
-            title: btn.undo,
-            click: function() {
-                editor.undo();
-            }
-        },
-        'repeat': {
-            title: btn.redo,
-            click: function() {
-                editor.redo();
-            }
-        }
+        };
+
+        for (var i in toolbars) base.button(i, toolbars[i]);
+
+    }
+
+    _AREA.oncut = function() {
+        win.setTimeout(_UPDATE_HISTORY, 1);
     };
 
-    for (var i in toolbars) base.button(i, toolbars[i]);
-
-    editor.area.oncut = function() {
-        win.setTimeout(function() {
-            editor.updateHistory();
-        }, 1);
+    _AREA.onpaste = function() {
+        win.setTimeout(_UPDATE_HISTORY, 1);
     };
 
-    editor.area.onpaste = function() {
-        win.setTimeout(function() {
-            editor.updateHistory();
-        }, 1);
-    };
+    _AREA.onkeydown = function(e) {
 
-    editor.area.onkeydown = function(e) {
-
-        var EA = this,
-            s = editor.selection(),
+        var s = _SELECTION(),
+            sb = s.before,
+            sv = s.value,
+            sa = s.after,
+            ss = s.start,
+            se = s.end,
             k = e.keyCode,
             ctrl = e.ctrlKey,
             shift = e.shiftKey,
-            alt = e.altKey;
+            alt = e.altKey,
+            tab = k == 9;
 
         win.setTimeout(function() {
             opt.keydown(e, base);
-        }, 10);
+        }, 1);
 
         // Disable the end bracket key if character before
         // cursor is matched with character after cursor
-        var b = s.before, a = s.after[0], esc = b.slice(-1) == '\\';
+        var b = sb, a = sa[0], esc = b.slice(-1) == '\\';
         if (
             b.indexOf('(') !== -1 && shift && k == 48 && a == ')' && !esc ||
             b.indexOf('{') !== -1 && shift && k == 221 && a == '}' && !esc ||
             b.indexOf('[') !== -1 && k == 221 && a == ']' && !esc ||
             b.indexOf('"') !== -1 && shift && k == 222 && a == '"' && !esc ||
-            b.indexOf('\'') !== -1 && !shift && k == 222 && a == '\'' && !esc ||
+            b.indexOf("'") !== -1 && !shift && k == 222 && a == "'" && !esc ||
             b.indexOf('`') !== -1 && !shift && k == 192 && a == '`' && !esc ||
             b.indexOf('<') !== -1 && shift && k == 190 && a == '>' && !esc
         ) {
-            editor.select(s.end + 1); // move caret by 1 character to the right
+            _SELECT(se + 1); // move caret by 1 character to the right
             return false;
         }
 
         // Auto close for `(`
         if (shift && k == 57 && !esc) {
-            return insert('(' + s.value + ')', s);
+            return insert('(' + sv + ')', s);
         }
 
         // Auto close for `{`
         if (shift && k == 219 && !esc) {
-            return insert('{' + s.value + '}', s);
+            return insert('{' + sv + '}', s);
         }
 
         // Auto close for `[`
         if (!shift && k == 219 && !esc) {
-            return insert('[' + s.value + ']', s);
+            return insert('[' + sv + ']', s);
         }
 
         // Auto close for `"`
         if (shift && k == 222 && !esc) {
-            return insert('\"' + s.value + '\"', s);
+            return insert('"' + sv + '"', s);
         }
 
         // Auto close for `'`
         if (!shift && k == 222 && !esc) {
-            return insert('\'' + s.value + '\'', s);
+            return insert("'" + sv + "'", s);
         }
 
         // Auto close for ```
         if (!shift && k == 192 && !esc) {
-            return insert('`' + s.value + '`', s);
+            return insert('`' + sv + '`', s);
         }
 
         // Auto close for `<`
         if (shift && k == 188 && !esc) {
-            return insert('<' + s.value + '>', s);
+            return insert('<' + sv + '>', s);
         }
 
         // `Shift + Tab` to outdent
-        if (shift && k == 9) {
-            editor.outdent(opt.tabSize);
+        if (shift && tab) {
+            _OUTDENT(opt.tabSize);
             return false;
         }
 
-        if (k == 9) {
+        if (tab) {
             // Auto close for HTML tags
             // Case `<div|>`
-            if (s.before.match(/<[^\/>]*?$/) && s.after[0] == '>') {
-                var match = /<([^\/>]*?)$/.exec(s.before);
-                EA.value = s.before + ' ' + s.value + '></' + match[1].split(' ')[0] + s.after;
-                editor.select(s.start + 1, function() {
-                    editor.updateHistory();
-                });
+            if (sb.match(/<[^\/>]*?$/) && sa[0] == '>') {
+                var match = /<([^\/>]*?)$/.exec(sb);
+                _AREA.value = sb + ' ' + sv + '></' + match[1].split(' ')[0] + sa;
+                _SELECT(ss + 1, _UPDATE_HISTORY);
                 return false;
             }
             // `Tab` to indent
-            editor.indent(opt.tabSize);
+            _INDENT(opt.tabSize);
             return false;
         }
 
@@ -808,16 +838,6 @@ var HTE = function(elem, o) {
                 return false;
             }
 
-            // `Shift + Q` or `Shift + Alt + Q` for "quote"
-            if (shift && k == 81 && s.value.length > 0) {
-                if (alt) {
-                    editor.toggle('\u2018', '\u2019'); // single quote
-                } else {
-                    editor.toggle('\u201C', '\u201D'); // double quote
-                }
-                return false;
-            }
-
             // `Ctrl + H` for heading
             if (ctrl && k == 72) {
                 toolbars.header.click();
@@ -841,6 +861,9 @@ var HTE = function(elem, o) {
         // `Enter` key was pressed
         if (k == 13) {
 
+            // `Alt` + `Enter` for creating carriage return arrow
+            if (alt && sv.length === 0) return _INSERT(_u21B5), false;
+
             // `Ctrl + Enter` for "paragraph"
             if (ctrl) {
                 toolbars.paragraph.click();
@@ -849,7 +872,7 @@ var HTE = function(elem, o) {
 
             // `Shift + Enter` for "break"
             if (shift) {
-                editor.insert('<' + opt.BR + opt.emptyElementSuffix + '\n');
+                _INSERT('<' + opt.BR + opt.emptyElementSuffix + '\n');
                 base.scroll();
                 return false;
             }
@@ -857,21 +880,19 @@ var HTE = function(elem, o) {
             var li_ = opt.LI.split(' ')[0];
 
             // Case `<li>List Item</li>|`
-            if (s.before.match(new RegExp('<\\/' + re_LI_ + '>$'))) {
-                var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*?<\\/' + re_LI_ + '>$').exec(s.before);
-                editor.insert('\n' + match[1] + '<' + li_ + match[2] + '</' + li_ + '>', function() {
-                    editor.select(s.end + match[1].length + match[2].length + 4, function() {
-                        editor.updateHistory();
-                    });
+            if (sb.match(new RegExp('<\\/' + re_LI_ + '>$'))) {
+                var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*?<\\/' + re_LI_ + '>$').exec(sb);
+                _INSERT('\n' + match[1] + '<' + li_ + match[2] + '</' + li_ + '>', function() {
+                    _SELECT(se + match[1].length + match[2].length + 4, _UPDATE_HISTORY);
                 });
                 base.scroll();
                 return false;
             }
 
             // Case `<li>List Item|</li>`
-            if (s.after.match(new RegExp('^<\\/' + re_LI_ + '>')) && s.before.slice(-1) != '>') {
-                var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*$').exec(s.before);
-                editor.insert('</' + li_ + '>\n' + match[1] + '<' + li_ + match[2]);
+            if (sa.match(new RegExp('^<\\/' + re_LI_ + '>')) && sb.slice(-1) != '>') {
+                var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*$').exec(sb);
+                _INSERT('</' + li_ + '>\n' + match[1] + '<' + li_ + match[2]);
                 base.scroll();
                 return false;
             }
@@ -879,79 +900,176 @@ var HTE = function(elem, o) {
             var p_ = opt.P.split(' ')[0];
 
             // Case `|</p>`
-            if (s.after.match(new RegExp('^<\\/' + re_P_ + '>'))) {
-                var match = new RegExp('(?:^|\\n?)([\\t ]*)<' + re_P_ + '(>| .*?>).*$').exec(s.before);
-                editor.insert('</' + p_ + '>\n' + match[1] + '<' + p_ + match[2]);
+            if (sa.match(new RegExp('^<\\/' + re_P_ + '>'))) {
+                var match = new RegExp('(?:^|\\n?)([\\t ]*)<' + re_P_ + '(>| .*?>).*$').exec(sb);
+                _INSERT('</' + p_ + '>\n' + match[1] + '<' + p_ + match[2]);
                 base.scroll();
                 return false;
             }
 
             // Automatic indentation
-            var indentBefore = (new RegExp('(?:^|\\n)((' + re_TAB + ')+)(.*?)$')).exec(s.before),
+            var indentBefore = (new RegExp('(?:^|\\n)((' + re_TAB + ')+)(.*?)$')).exec(sb),
                 indent = indentBefore ? indentBefore[1] : "";
-            if (s.before.match(/[\(\{\[]$/) && s.after.match(/^[\]\}\)]/) || s.before.match(/<[^\/>]*?>$/) && s.after.match(/^<\//)) {
-                editor.insert('\n' + indent + opt.tabSize + '\n' + indent, function() {
-                    editor.select(s.start + indent.length + opt.tabSize.length + 1, function() {
-                        editor.updateHistory();
-                    });
+            if (sb.match(/[\(\{\[]$/) && sa.match(/^[\]\}\)]/) || sb.match(/<[^\/>]*?>$/) && sa.match(/^<\//)) {
+                _INSERT('\n' + indent + opt.tabSize + '\n' + indent, function() {
+                    _SELECT(ss + indent.length + opt.tabSize.length + 1, _UPDATE_HISTORY);
                 });
                 base.scroll();
                 return false;
             }
 
-            editor.insert('\n' + indent);
+            _INSERT('\n' + indent);
             base.scroll();
             return false;
 
         }
 
-        // `Backspace` was pressed
-        if (k == 8) {
+        var typography = {
+            "'": _u2019,
+            '"': _u201D,
+            '---': _u2014,
+            '--': _u2013,
+            '...': _u2026,
+            '|': _u00A6,
+            '(c)': _u00A9,
+            '(C)': _u00A9,
+            '(p)': _u2117,
+            '(P)': _u2117,
+            '(sm)': _u2120,
+            '(SM)': _u2120,
+            ' sm': _u2120,
+            ' SM': _u2120,
+            '(tm)': _u2122,
+            '(TM)': _u2122,
+            ' tm': _u2122,
+            ' TM': _u2122,
+            '(r)': _u00AE,
+            '(R)': _u00AE,
+            '+-': _u00B1,
+            '-+': _u00B1,
+            '/': _u00F7,
+            '^': _u00B0,
+            '<<': _u00AB,
+            '>>': _u00BB,
+            '<': _u2039,
+            '>': _u203A,
+            '<=': _u2264,
+            '>=': _u2265,
+            '!=': _u2260
+        };
 
-            if (s.value.length === 0) {
+        if (sv.length > 0) {
+
+            if (alt) {
+
+                // Convert some combination of characters
+                // into their corresponding Unicode characters
+                _REPLACE(/'([^']*?)'/g, _u2018 + '$1' + _u2019, noop);
+                _REPLACE(/"([^"]*?)"/g, _u201C + '$1' + _u201D, noop);
+                for (var i in typography) {
+                    _REPLACE(new RegExp(escape(i), 'g'), typography[i], noop);
+                }
+                _UPDATE_HISTORY();
+                return false;
+
+            }
+
+        } else {
+
+            if (alt) {
+
+                // `Alt` for curly double quote
+                if (sb.indexOf('"') !== -1 && sa[0] == '"') {
+                    _AREA.value = sb.replace(/"([^"]*?)$/, _u201C + '$1') + _u201D + sa.slice(1);
+                    _SELECT(se, _UPDATE_HISTORY);
+                    return false;
+                }
+
+                // `Alt` for curly single quote
+                if (sb.indexOf("'") !== -1 && sa[0] == "'") {
+                    _AREA.value = sb.replace(/'([^']*?)$/, _u2018 + '$1') + _u2019 + sa.slice(1);
+                    _SELECT(se, _UPDATE_HISTORY);
+                    return false;
+                }
+
+                // --ibid
+                if (sb.slice(-2).match(/\w'$/i)) {
+                    _AREA.value = sb.slice(0, -1) + _u2019 + sa;
+                    _SELECT(se, _UPDATE_HISTORY);
+                    return false;
+                }
+
+                if (sb.match(/\((c|p|sm|tm|r)$/i) && sa[0] == ')') {
+                    var s_ = sb.match(/\((sm|tm)$/i) ? 2 : 1;
+                    _AREA.value = sb.slice(0, -(s_ + 1)) + typography['(' + sb.slice(-s_).toLowerCase() + ')'] + sa.slice(s_);
+                    _SELECT(se - s_, _UPDATE_HISTORY);
+                    return false;
+                }
+
+                var _sb = sb.replace(/&lt;/g, '<').replace(/&gt;/g, '>'),
+                    _sa = sa.replace(/&lt;/g, '<').replace(/&gt;/g, '>');
+
+                if (_sb.indexOf('<<') !== -1 && _sa.indexOf('>>') === 0) {
+                    _AREA.value = sb.replace(/(?:<<|&lt;&lt;)([^<]*)$/, _u00AB + '$1') + sa.replace(/^(?:>>|&gt;&gt;)/, _u00BB);
+                    _SELECT(_sb.length - 1, _UPDATE_HISTORY);
+                    return false;
+                }
+
+                if (_sb.indexOf('<') !== -1 && _sa.indexOf('>') === 0) {
+                    _AREA.value = sb.replace(/(?:<|&lt;)([^<]*)$/, _u2039 + '$1') + sa.replace(/^(?:>|&gt;)/, _u203A);
+                    _SELECT(_sb.length, _UPDATE_HISTORY);
+                    return false;
+                }
+
+                // Convert some combination of characters
+                // into their corresponding Unicode characters
+                for (var i in typography) {
+                    if (sb.slice(-i.length) == i) {
+                        _AREA.value = sb.slice(0, -i.length) + typography[i] + sa;
+                        _SELECT(ss - i.length + 1, _UPDATE_HISTORY);
+                        return false;
+                    }
+                }
+
+                // `Alt` + `Arrow Key(s)` for creating arrows
+                if (k == 37) return _INSERT(_u2190), false;
+                if (k == 38) return _INSERT(_u2191), false;
+                if (k == 39) return _INSERT(_u2192), false;
+                if (k == 40) return _INSERT(_u2193), false;
+
+            }
+
+            // `Backspace` was pressed
+            if (k == 8) {
 
                 // Remove indentation quickly
-                if(s.before.match(new RegExp(re_TAB + '$'))) {
-                    editor.outdent(opt.tabSize);
+                if(sb.match(new RegExp(re_TAB + '$'))) {
+                    _OUTDENT(opt.tabSize);
                     return false;
                 }
 
                 // Remove HTML tag quickly
-                if (s.before.match(/<\/?[^>]*?>$/)) {
-                    editor.outdent('<\/?[^>]*?>', 1, true);
+                if (sb.match(/<\/?[^>]*?>$/)) {
+                    _OUTDENT('<\/?[^>]*?>', 1, true);
                     return false;
                 }
 
                 // Remove closing bracket and quotes quickly
-                switch (s.before.slice(-1)) {
-                    case '(':
-                        editor.toggle('(', ')');
-                        return false;
-                    break;
-                    case '{':
-                        editor.toggle('{', '}');
-                        return false;
-                    break;
-                    case '[':
-                        editor.toggle('[', ']');
-                        return false;
-                    break;
-                    case '"':
-                        editor.toggle('"', '"');
-                        return false;
-                    break;
-                    case '\'':
-                        editor.toggle('\'', '\'');
-                        return false;
-                    break;
-                    case '<':
-                        editor.toggle('<', '>');
-                        return false;
-                    break;
-                    case '`':
-                        editor.toggle('`', '`');
-                        return false;
-                    break;
+                switch (sb.slice(-1)) {
+                    case '(': return _TOGGLE('(', ')'), false;
+                    case '{': return _TOGGLE('{', '}'), false;
+                    case '[': return _TOGGLE('[', ']'), false;
+                    case '"': return _TOGGLE('"', '"'), false;
+                    case "'": return _TOGGLE("'", "'"), false;
+                    case '<': return _TOGGLE('<', '>'), false;
+                    case '*': return _TOGGLE('*', '*'), false;
+                    case '_': return _TOGGLE('_', '_'), false;
+                    case '~': return _TOGGLE('~', '~'), false;
+                    case '`': return _TOGGLE('`', '`'), false;
+                    case _u201C: return _TOGGLE(_u201C, _u201D), false;
+                    case _u2018: return _TOGGLE(_u2018, _u2019), false;
+                    case _u00AB: return _TOGGLE(_u00AB, _u00BB), false;
+                    case _u2039: return _TOGGLE(_u2039, _u203A), false;
                 }
 
             }
@@ -962,9 +1080,8 @@ var HTE = function(elem, o) {
         if (k == 39) {
 
             // Jump out from the closing tag quickly
-            if (s.after.match(/^<\/.*?>/)) {
-                var end = s.end + s.after.indexOf('>') + 1;
-                editor.select(end);
+            if (sa.match(/^<\/.*?>/)) {
+                _SELECT(se + sa.indexOf('>') + 1);
                 return false;
             }
 
@@ -977,9 +1094,7 @@ var HTE = function(elem, o) {
         }
 
         if (!alt && !ctrl && !shift) {
-            win.setTimeout(function() {
-                editor.updateHistory();
-            }, 1);
+            win.setTimeout(_UPDATE_HISTORY, 1);
         }
 
     };
