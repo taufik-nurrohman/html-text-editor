@@ -142,11 +142,11 @@ var HTE = function(elem, o) {
         };
 
     var page = doc.body,
-        scroll = page.scrollTop || doc.documentElement.scrollTop,
         overlay = doc.createElement('div'),
         modal = doc.createElement('div'),
         drop = doc.createElement('div'),
         button = null,
+        scroll = 0,
         noop = function() {},
 
         // Rewrite some methods for better JS minification
@@ -285,6 +285,7 @@ var HTE = function(elem, o) {
         }
         type = type || 'default';
         offset = offset || {};
+        scroll = page.scrollTop || doc.documentElement.scrollTop;
         overlay.className = opt.modalOverlayClass.replace(/%s/g, type);
         modal.className = opt.modalClass.replace(/%s/g, type);
         modal.innerHTML = '<div class="' + opt.modalHeaderClass.replace(/%s/g, type) + '"></div><div class="' + opt.modalContentClass.replace(/%s/g, type) + '"></div><div class="' + opt.modalFooterClass.replace(/%s/g, type) + '"></div>';
@@ -329,6 +330,7 @@ var HTE = function(elem, o) {
         }
         type = type || 'default';
         offset = offset || {};
+        scroll = page.scrollTop || doc.documentElement.scrollTop;
         drop.className = opt.dropClass.replace(/%s/g, type);
         var d_s = drop.style;
         d_s.visibility = 'hidden';
