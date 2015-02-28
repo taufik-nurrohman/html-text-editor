@@ -60,6 +60,7 @@ var HTE = function(elem, o) {
             tabSize: '    ',
             toolbar: true,
             shortcut: false,
+            areaClass: 'editor-area',
             toolbarClass: 'editor-toolbar',
             toolbarIconClass: 'fa fa-%s',
             toolbarButtonClass: 'editor-toolbar-button editor-toolbar-button-%s',
@@ -1268,6 +1269,13 @@ var HTE = function(elem, o) {
         }
 
     });
+
+    // Add a class to the `<textarea>` element
+    var test = new RegExp('(^| )' + opt.areaClass + '( |$)'),
+        c = _AREA.className;
+    if (!c.match(test)) {
+        _AREA.className = trim(c + ' ' + opt.areaClass);
+    }
 
     opt.ready(base);
 
