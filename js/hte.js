@@ -540,10 +540,10 @@ var HTE = function(elem, o) {
     base.button = function(key, data) {
         if (key === '|') return base.separator(data);
         data = data || {};
-        data['tabindex'] = -1;
         if (data.title === false) return;
         var btn = doc.createElement('a');
             btn.className = opt.toolbarButtonClass.replace(/%s/g, key);
+            btn.setAttribute('tabindex', -1);
             btn.href = '#' + key.replace(' ', ':').replace(/[^a-z0-9\:]/gi, '-').replace(/-+/g,'-').replace(/^-|-$/g, "");
             btn.innerHTML = data.text ? data.text.replace(/%s/g, key) : '<i class="' + opt.toolbarIconClass.replace(/%s/g, key) + '"></i>';
         if (data.title) btn.title = data.title;
