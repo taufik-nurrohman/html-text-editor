@@ -3,9 +3,22 @@
   <head>
     <meta charset="utf-8">
     <title>Demo</title>
-    <link href="http://maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
+    <link href="//maxcdn.bootstrapcdn.com/font-awesome/4.3.0/css/font-awesome.min.css" rel="stylesheet">
     <link href="css/demo.css" rel="stylesheet">
     <link href="css/style.css" rel="stylesheet">
+    <style>
+.custom-modal-my-modal {width:auto}
+.custom-modal-my-modal img {
+  display:block;
+  width:600px;
+  height:200px;
+}
+.custom-color-drop .color {
+  display:block;
+  height:15px;
+  cursor:pointer;
+}
+</style>
   </head>
   <body>
 
@@ -23,6 +36,8 @@ List Item</textarea>
     <script src="js/library.js"></script>
     <script src="js/hte.js"></script>
     <script>
+
+    // Initiation
     var myEditor = new HTE(document.getElementById('editor-area'), {
         tabSize: '  ',
         shortcut: true,
@@ -34,11 +49,91 @@ List Item</textarea>
         },
         ready: function() {
             console.log('Ready!');
+        },
+        cut: function(selection) {
+            console.log(selection);
+        },
+        copy: function(selection) {
+            console.log(selection);
+        },
+        paste: function(selection) {
+            console.log(selection);
         }
     });
+
+    // Custom Button and Modal Example
+    myEditor.button('strikethrough another-class-goes-here another-another-class-goes-here', {
+        title: 'Strike',
+        position: 3,
+        click: function(e, base) {
+            base.grip.toggle('~~', '~~');
+        }
+    });
+    myEditor.button('warning', {
+        title: 'Example Alert Box',
+        click: function(e, base) {
+            base.alert('Alert Box', 'This is an alert box!');
+        }
+    });
+    myEditor.button('question-circle', {
+        title: 'Example Confirm Box',
+        click: function(e, base) {
+            base.confirm('Confirm Box', 'This is a confirm box!', {
+                OK: function() {
+                    alert('Confirmed!');
+                },
+                CANCEL: function() {
+                    alert('Cancelled!');
+                }
+            });
+        }
+    });
+    myEditor.button('pencil', {
+        title: 'Example Custom Modal',
+        click: function(e, base) {
+            base.modal('my-modal', function(overlay, modal) {
+                var btn = document.createElement('button');
+                btn.innerHTML = 'Save';
+                btn.onclick = function() {
+                    alert('Saved!');
+                    base.close(true);
+                    return false;
+                };
+                modal.children[0].innerHTML = 'Test Modal'; // Header
+                modal.children[1].innerHTML = '<img src="http://lorempixel.com/600/200/animals">'; // Content
+                modal.children[2].appendChild(btn); // Footer
+            });
+        }
+    });
+
+    // Custom Drop Example
+    myEditor.button('paint-brush', {
+        title: 'Example Drop',
+        click: function(e, base) {
+            base.drop('color', function(drop) {
+                var colors = ['#5FB0E6', '#86CDEA', '#86BAA3', '#706D45'], color;
+                drop.innerHTML = "";
+                for (var i in colors) {
+                    color = document.createElement('span');
+                    color.className = 'color';
+                    color.title = colors[i];
+                    color.style.backgroundColor = colors[i];
+                    color.onclick = function() {
+                        base.grip.toggle('<span style="color:' + this.title + ';">', '</span>');
+                        base.close(true);
+                    };
+                    drop.appendChild(color);
+                }
+            });
+        }
+    });
+
+    // Toolbar Separator Example
+    myEditor.separator({position: 4});
+
     </script>
 
-    <p><button onclick="myEditor.grip.toggle('&lt;test&gt;', '&lt;/test&gt;');">Test</button></p>
+    <p><button onclick="myEditor.grip.config.buttons.link.click();">Test</button></p>
 
   </body>
 </html>
