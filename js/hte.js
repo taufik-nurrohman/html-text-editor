@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.1.5
+ *  HTML TEXT EDITOR PLUGIN 1.1.6
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -263,16 +263,33 @@ var HTE = function(elem, o) {
             list_ = list.split(' ')[0],
             li_ = li.split(' ')[0], end;
         if (s.value.length > 0) {
+            var isListed = /([\s\S]*?)<(?:ol|ul)(>| .*?>)([\s\S]*?)<\/(?:ol|ul)>([\s\S]*?)/g;
             if (s.value == placeholder) {
                 _SELECT(s.start, s.end);
+            } else if (s.value.match(isListed)) {
+                _REPLACE(isListed, '$1<' + list_ + '$2$3</' + list_ + '>$4');
             } else {
                 _INSERT('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + s.value.replace(/\n/g, '</' + li_ + '>\n' + opt.tabSize + '<' + li + '>').replace(new RegExp('\\n(' + opt.tabSize + ')?<' + li + '><\\/' + li_ + '>\\n', 'g'), '\n</' + list_ + '>\n\n<' + list + '>\n') + '</' + li_ + '>\n</' + list_ + '>');
             }
         } else {
-            _INSERT('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n</' + list_ + '>', function() {
-                end = s.start + 1 + list.length + 2 + opt.tabSize.length + 1 + li.length + 1;
+            if (s.after.match(new RegExp('^<\\/' + li_ + '>'))) {
+                var indentBefore = /(?:^|\n)([\t ]*).*?$/.exec(s.before),
+                    indent = indentBefore ? indentBefore[1] : "";
+                _INSERT('\n' + indent + opt.tabSize + '<' + list + '>\n' + indent + opt.tabSize + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n' + indent + opt.tabSize + '</' + list_ + '>\n' + indent, function() {
+                    end = _SELECTION().end - indent.length - 1 - 1 - list_.length - 2 - opt.tabSize.length - indent.length - 1 - 1 - li_.length - 2;
+                    _SELECT(end - placeholder.length, end, _UPDATE_HISTORY);
+                });
+            } else if (s.before.match(/<\/(?:ol|ul)>\s?$/)) {
+                _AREA.value = s.before.replace(/<(?:ol|ul)(>| .*?>)([\s\S]*?)<\/(?:ol|ul)>(\s?)$/g, '<' + list_ + '$1$2</' + list_ + '>$3') + s.after;
+                _SELECT(s.end, _UPDATE_HISTORY);
+            } else {
+                var s_B = s.before.length > 0 ? '\n\n' : "",
+                    clean_B = trim_(s.before),
+                    v = '<' + list + '>\n' + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n</' + list_ + '>\n\n';
+                end = clean_B.length + s_B.length + 1 + list.length + 2 + opt.tabSize.length + 1 + li.length + 1;
+                _AREA.value = clean_B + s_B + v + _trim(s.after);
                 _SELECT(end, end + placeholder.length, _UPDATE_HISTORY);
-            });
+            }
         }
     }
 
@@ -868,7 +885,7 @@ var HTE = function(elem, o) {
                 base.prompt(opt.prompts.link_url_title, opt.prompts.link_url, true, function(r) {
                     url = r;
                     base.prompt(opt.prompts.link_title_title, opt.prompts.link_title, false, function(r) {
-                        title = r;
+                        title = r.replace(/'/g, '&apos;').replace(/"/g, '&quot;');
                         _WRAP('<' + a + ' href="' + url + '"' + (title !== "" ? ' title=\"' + title + '\"' : "") + '>', '</' + a_ + '>', (s.value.length === 0 ? function() {
                             _REPLACE(/^/, placeholder);
                         } : 1));
