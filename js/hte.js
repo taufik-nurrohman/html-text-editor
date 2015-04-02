@@ -338,10 +338,14 @@ var HTE = function(elem, o) {
             if (modal.offsetLeft < 0 && !fx_left) {
                 m_s.left = 0;
                 m_s.marginLeft = 0;
+                fx_left = true;
+                offset.left = 0;
             }
             if (modal.offsetTop < 0 && !fx_top) {
                 m_s.top = 0;
                 m_s.marginTop = 0;
+                fx_top = true;
+                offset.top = 0;
             }
             var handle = modal.children[0];
             addEvent(handle, "mousedown", function() {
