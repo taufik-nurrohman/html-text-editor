@@ -290,15 +290,22 @@ var HTE = function(elem, o) {
     var opt = extend(defaults, o),
         nav = doc.createElement('span');
 
+    // Access the Generated DOM
+    base.DOM = {
+        overlay: overlay,
+        modal: modal,
+        drop: drop
+    };
+
     // Escapes for `RegExp()`
     var re_TAB = escape(opt.tabSize),
         re_P_ = escape(opt.P.split(' ')[0]),
         re_LI_ = escape(opt.LI.split(' ')[0]);
 
-    // Base Keyboard Shortcut
+    // Base Shortcut
     base.shortcuts = [];
     base.shortcut = function(code, callback) {
-        base.shortcuts[code] = callback;
+        base.shortcuts[code.toLowerCase()] = callback;
     };
 
     // Base Event Listener
@@ -1018,17 +1025,17 @@ var HTE = function(elem, o) {
         }, 1);
 
         for (var i in base.shortcuts) {
-            var shc = i.toLowerCase().split('+'), valid = false;
+            var shc = i.split('+'), valid = 0;
             for (var j in shc) {
-                valid = (
+                if (
                     shc[j] == 'ctrl' && ctrl ||
                     shc[j] == 'shift' && shift ||
                     shc[j] == 'alt' && alt ||
                     shc[j] == 'tab' && tab ||
                     parseInt(shc[j], 10) == k
-                );
+                ) valid++;
             }
-            if (valid) return base.shortcuts[i](e, base);
+            if (valid === shc.length) return base.shortcuts[i](e, base);
         }
 
         // Disable the end bracket key if character before
@@ -1256,7 +1263,7 @@ var HTE = function(elem, o) {
 
         }
 
-        var typography = {
+        var type = {
             "'": _u2019,
             '"': _u201D,
             '---': _u2014,
@@ -1300,8 +1307,8 @@ var HTE = function(elem, o) {
                 // into their corresponding Unicode characters
                 _REPLACE(/'([^']*?)'/g, _u2018 + '$1' + _u2019, noop);
                 _REPLACE(/"([^"]*?)"/g, _u201C + '$1' + _u201D, noop);
-                for (var i in typography) {
-                    _REPLACE(new RegExp(escape(i), 'g'), typography[i], noop);
+                for (var i in type) {
+                    _REPLACE(new RegExp(escape(i), 'g'), type[i], noop);
                 }
                 _UPDATE_HISTORY();
                 return false;
@@ -1332,7 +1339,7 @@ var HTE = function(elem, o) {
 
                 if (sb.match(/\((c|p|sm|tm|r)$/i) && sa[0] == ')') {
                     var s_ = sb.match(/\((sm|tm)$/i) ? 2 : 1;
-                    _AREA.value = sb.slice(0, -(s_ + 1)) + typography['(' + sb.slice(-s_).toLowerCase() + ')'] + sa.slice(1);
+                    _AREA.value = sb.slice(0, -(s_ + 1)) + type['(' + sb.slice(-s_).toLowerCase() + ')'] + sa.slice(1);
                     _SELECT(se - s_, _UPDATE_HISTORY);
                     return false;
                 }
@@ -1354,9 +1361,9 @@ var HTE = function(elem, o) {
 
                 // Convert some combination of printable characters
                 // into their corresponding Unicode characters
-                for (var i in typography) {
+                for (var i in type) {
                     if (sb.slice(-i.length) == i) {
-                        _AREA.value = sb.slice(0, -i.length) + typography[i] + sa;
+                        _AREA.value = sb.slice(0, -i.length) + type[i] + sa;
                         _SELECT(ss - i.length + 1, _UPDATE_HISTORY);
                         return false;
                     }
