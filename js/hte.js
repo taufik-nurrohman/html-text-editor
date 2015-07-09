@@ -870,8 +870,8 @@ var HTE = function(elem, o) {
                 if (s.value.length) {
                     var s = _SELECTION(),
                         clean_B = s.before,
-                        clean_A = s.after,
                         clean_V = s.value,
+                        clean_A = s.after,
                         code_e_ = escape(code_),
                         pre_e_ = escape(pre_);
                     if (clean_B.match(new RegExp('(<' + pre_e_ + '(>| .*?>))?<' + code_e_ + '(>| .*?>)\s*$')) && clean_A.match(new RegExp('^\s*<\\/' + code_e_ + '>(<\\/' + pre_e_ + '>)?'))) {
@@ -905,10 +905,11 @@ var HTE = function(elem, o) {
                     p_ = p.split(' ')[0],
                     p_e_ = escape(p_),
                     re = '<\\/?(?:' + h_e_ + '|' + p_e_ + ')(>| .*?>)',
-                    s_B = trim_(s.before.replace(new RegExp(re + '$'), "")).length > 0 ? '\n\n' : "",
-                    clean_B = trim_(s.before.replace(new RegExp(re + '$', 'g'), "")),
+                    clean_B = trim_(s.before.replace(new RegExp(re + '$'), "")),
                     clean_V = trim(s.value.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "").replace(/\n+/g, ' ')),
-                    clean_A = _trim(s.after.replace(new RegExp('^' + re, 'g'), "")),
+                    clean_A = _trim(s.after.replace(new RegExp('^' + re), "")),
+                    s_B = clean_B.length ? '\n\n' : "",
+                    s_A = clean_A.length ? '\n\n' : "",
                     tag_end = s.value.match(new RegExp('^' + re)) ? new RegExp('^' + re).exec(s.value) : new RegExp(re + '$').exec(s.before), end, h_o, h_o_;
                 tag_end = tag_end ? tag_end[1] : '>';
                 T = T < 6 ? T + 1 : 0;
@@ -916,21 +917,20 @@ var HTE = function(elem, o) {
                     if (!s.before.match(new RegExp(re + '$'))) {
                         h_o = h.replace(/%d/g, T);
                         h_o_ = h_.replace(/%d/g, T);
-                        _AREA.value = clean_B + s_B + '<' + (T > 0 ? h_o : p) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>\n\n' + clean_A;
+                        _AREA.value = clean_B + s_B + '<' + (T > 0 ? h_o : p) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>' + s_A + clean_A;
                         end = clean_B.length + s_B.length + 1 + (T > 0 ? h_o.length : p.length) + tag_end.length;
                     } else {
                         h_o_ = h_.replace(/%d/g, T);
-                        _AREA.value = clean_B + s_B + '<' + (T > 0 ? h_o_ : p_) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>' + (clean_A.length ? '\n\n' : "") + clean_A;
+                        _AREA.value = clean_B + s_B + '<' + (T > 0 ? h_o_ : p_) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>' + s_A + clean_A;
                         end = clean_B.length + s_B.length + 1 + (T > 0 ? h_o_.length : p_.length) + tag_end.length;
                     }
                     _SELECT(end, end + clean_V.length, _UPDATE_HISTORY);
                 } else {
                     var placeholder = opt.placeholders.heading_text;
-                    clean_A = _trim(s.after);
                     h = h.replace(/%d/g, 1);
                     h_ = h_.replace(/%d/g, 1);
                     T = 1;
-                    _AREA.value = trim_(s.before) + s_B + '<' + h + '>' + placeholder + '</' + h_ + '>' + (clean_A.length ? '\n\n' : "") + clean_A;
+                    _AREA.value = trim_(s.before) + s_B + '<' + h + '>' + placeholder + '</' + h_ + '>' + s_A + clean_A;
                     end = trim_(s.before).length + s_B.length + 1 + h.length + 1;
                     _SELECT(end, end + placeholder.length, _UPDATE_HISTORY);
                 }
@@ -1365,7 +1365,7 @@ var HTE = function(elem, o) {
             '.': _u00B7
         };
 
-        if (sv.length > 0) {
+        if (sv.length) {
 
             if (alt) {
 
