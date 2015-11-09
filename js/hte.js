@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.4.4
+ *  HTML TEXT EDITOR PLUGIN 1.4.5
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -189,7 +189,7 @@ var HTE = function(elem, o) {
         if (fn === null) {
             return elem[event] = null;
         }
-        if(is_function(elem[event])) {
+        if (is_function(elem[event])) {
             fn = (function(fn_1, fn_2) {
                 return function() {
                     return fn_1.apply(this, arguments), fn_2.apply(this, arguments);
@@ -1185,7 +1185,7 @@ var HTE = function(elem, o) {
             return false;
         }
 
-        if (opt.shortcut) {
+        if (opt.toolbar && opt.shortcut) {
 
             // `Ctrl + B` for "bold"
             if (ctrl && k == 66) {
@@ -1280,46 +1280,50 @@ var HTE = function(elem, o) {
             if (alt && sv.length === 0) return _INSERT(_u21B5), false;
 
             // `Ctrl + Enter` for "paragraph"
-            if (ctrl) {
+            if (opt.toolbar && ctrl) {
                 toolbars.paragraph.click();
                 return false;
             }
 
             // `Shift + Enter` for "break"
-            if (shift) {
+            if (opt.toolbar && shift) {
                 _INSERT('<' + opt.BR + opt.emptyElementSuffix + '\n');
                 base.scroll();
                 return false;
             }
 
-            var li_ = opt.LI.split(' ')[0];
+            if (opt.toolbar) {
 
-            // Case `<li>List Item</li>|`
-            if (sb.match(new RegExp('<\\/' + re_LI_ + '>$'))) {
-                var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*?<\\/' + re_LI_ + '>$').exec(sb);
-                _INSERT('\n' + match[1] + '<' + li_ + match[2] + '</' + li_ + '>', function() {
-                    _SELECT(se + match[1].length + match[2].length + 4, _UPDATE_HISTORY);
-                });
-                base.scroll();
-                return false;
-            }
+                var li_ = opt.LI.split(' ')[0];
 
-            // Case `<li>List Item|</li>`
-            if (sa.match(new RegExp('^<\\/' + re_LI_ + '>')) && sb.slice(-1) != '>') {
-                var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*$').exec(sb);
-                _INSERT('</' + li_ + '>\n' + match[1] + '<' + li_ + match[2]);
-                base.scroll();
-                return false;
-            }
+                // Case `<li>List Item</li>|`
+                if (sb.match(new RegExp('<\\/' + re_LI_ + '>$'))) {
+                    var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*?<\\/' + re_LI_ + '>$').exec(sb);
+                    _INSERT('\n' + match[1] + '<' + li_ + match[2] + '</' + li_ + '>', function() {
+                        _SELECT(se + match[1].length + match[2].length + 4, _UPDATE_HISTORY);
+                    });
+                    base.scroll();
+                    return false;
+                }
 
-            var p_ = opt.P.split(' ')[0];
+                // Case `<li>List Item|</li>`
+                if (sa.match(new RegExp('^<\\/' + re_LI_ + '>')) && sb.slice(-1) != '>') {
+                    var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*$').exec(sb);
+                    _INSERT('</' + li_ + '>\n' + match[1] + '<' + li_ + match[2]);
+                    base.scroll();
+                    return false;
+                }
 
-            // Case `|</p>`
-            if (sa.match(new RegExp('^<\\/' + re_P_ + '>'))) {
-                var match = new RegExp('(?:^|\\n?)([\\t ]*)<' + re_P_ + '(>| .*?>).*$').exec(sb);
-                _INSERT('</' + p_ + '>\n' + match[1] + '<' + p_ + match[2]);
-                base.scroll();
-                return false;
+                var p_ = opt.P.split(' ')[0];
+
+                // Case `|</p>`
+                if (sa.match(new RegExp('^<\\/' + re_P_ + '>'))) {
+                    var match = new RegExp('(?:^|\\n?)([\\t ]*)<' + re_P_ + '(>| .*?>).*$').exec(sb);
+                    _INSERT('</' + p_ + '>\n' + match[1] + '<' + p_ + match[2]);
+                    base.scroll();
+                    return false;
+                }
+
             }
 
             // Automatic indentation
@@ -1457,7 +1461,7 @@ var HTE = function(elem, o) {
             if (k == 8) {
 
                 // Remove indentation quickly
-                if(sb.match(new RegExp(re_TAB + '$'))) {
+                if (sb.match(new RegExp(re_TAB + '$'))) {
                     _OUTDENT(opt.tabSize);
                     return false;
                 }
