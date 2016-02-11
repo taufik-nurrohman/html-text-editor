@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.4.5
+ *  HTML TEXT EDITOR PLUGIN 1.5.0
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -45,7 +45,9 @@ var HTE = function(elem, o) {
         _u2191 = '\u2191', // upwards arrow
         _u2193 = '\u2193', // downwards arrow
         _u21B5 = '\u21B5', // carriage return arrow
+        _u2318 = '\u2318', // command sign
         _u00B7 = '\u00B7', // middle dot
+        _u2116 = '\u2116', // `No` sign
 
         base = this,
         win = window,
@@ -66,8 +68,10 @@ var HTE = function(elem, o) {
             modalClass: 'custom-modal custom-modal-%s',
             modalHeaderClass: 'custom-modal-header custom-modal-%s-header',
             modalContentClass: 'custom-modal-content custom-modal-%s-content',
-            modalFooterClass: 'custom-modal-action custom-modal-%s-action',
+            modalFooterClass: 'custom-modal-footer custom-modal-%s-footer',
             modalOverlayClass: 'custom-modal-overlay custom-modal-%s-overlay',
+            autoComplete: true,
+            autoIndent: true,
             emptyElementSuffix: '>', // used to determine the end character of self-closing HTML tags
             autoEncodeHTML: true, // encode the selected HTML string inside `<code>` element ?
             P: 'p',
@@ -81,7 +85,7 @@ var HTE = function(elem, o) {
             OL: 'ol',
             LI: 'li',
             HR: 'hr',
-            QUOTE: 'q',
+            Q: 'q',
             BLOCKQUOTE: 'blockquote',
             CODE: 'code',
             PRE: 'pre',
@@ -89,38 +93,34 @@ var HTE = function(elem, o) {
             SUP: 'sup',
             A: 'a',
             IMG: 'img',
-            buttons: {
+            FIGURE: 'figure',
+            FIGCAPTION: 'figcaption',
+            actions: {
                 ok: 'OK',
+                cancel: 'Cancel',
                 yes: 'Yes',
                 no: 'No',
-                cancel: 'Cancel',
                 open: 'Open',
-                close: 'Close',
-                bold: 'Bold',
-                italic: 'Italic',
-                underline: 'Underline',
-                strike: 'Strike',
-                superscript: 'Superscript',
-                subscript: 'Subscript',
-                code: 'Code',
-                paragraph: 'Paragraph',
-                quote: 'Quote',
-                heading: 'H1 ' + _u2013 + ' H6',
-                link: 'Link',
-                image: 'Image',
-                ol: 'Ordered List',
-                ul: 'Unordered List',
-                rule: 'Horizontal Rule',
-                undo: 'Undo',
-                redo: 'Redo'
+                close: 'Close'
             },
-            prompts: {
-                link_title: 'link title goes here' + _u2026,
-                link_title_title: 'Link Title',
-                link_url: 'http://',
-                link_url_title: 'Link URL',
-                image_url: 'http://',
-                image_url_title: 'Image URL'
+            buttons: {
+                bold: ['Bold', _u2318 + '+B'],
+                italic: ['Italic', _u2318 + '+I'],
+                underline: ['Underline', _u2318 + '+U'],
+                strike: ['Strike', _u2318 + '+Delete'],
+                superscript: ['Superscript', _u2318 + '+' + _u2191],
+                subscript: ['Subscript', _u2318 + '+' + _u2193],
+                code: ['Code', _u2318 + '+K'],
+                paragraph: ['Paragraph', _u2318 + '+' + _u21B5],
+                quote: ['Quote', _u2318 + '+Q'],
+                heading: ['H1 ' + _u2013 + ' H6', _u2318 + '+H'],
+                link: ['Link', _u2318 + '+L'],
+                image: ['Image', _u2318 + '+G'],
+                ol: ['Ordered List', _u2318 + '++'],
+                ul: ['Unordered List', _u2318 + '+-'],
+                rule: ['Horizontal Rule', _u2318 + '+R'],
+                undo: ['Undo', _u2318 + '+Z'],
+                redo: ['Redo', _u2318 + '+Y']
             },
             placeholders: {
                 text: 'text goes here' + _u2026,
@@ -129,6 +129,16 @@ var HTE = function(elem, o) {
                 list_ul_text: 'List item',
                 list_ol_text: 'List item',
                 image_alt: 'Image'
+            },
+            prompts: {
+                link_title: 'link title goes here' + _u2026,
+                link_title_title: 'Link Title',
+                link_url: 'http://',
+                link_url_title: 'Link URL',
+                image_title: 'image caption goes here' + _u2026,
+                image_title_title: 'Image Caption',
+                image_url: 'http://',
+                image_url_title: 'Image URL'
             },
             update: noop,
             keydown: noop,
@@ -152,17 +162,21 @@ var HTE = function(elem, o) {
         y_m = 0,
         v_w = page.parentNode.offsetWidth,
         v_h = win.innerHeight > page.parentNode.offsetHeight ? win.innerHeight : page.parentNode.offsetHeight,
+        NN = '\n\n',
+        SS = ' ',
 
         // Rewrite some methods for better JS minification
         _AREA = elem,
         _INDENT = editor.indent,
         _INSERT = editor.insert,
+        _KEY = editor.key,
         _OUTDENT = editor.outdent,
         _REPLACE = editor.replace,
         _SELECT = editor.select,
         _SELECTION = editor.selection,
         _UPDATE_HISTORY = editor.updateHistory,
-        _WRAP = editor.wrap;
+        _WRAP = editor.wrap,
+        _TIMER = win.setTimeout;
 
     function is_set(elem) {
         return typeof elem !== "undefined";
@@ -225,7 +239,7 @@ var HTE = function(elem, o) {
 
     function insert(str, s) {
         _INSERT(str, function() {
-            _SELECT(s.end + 1, _UPDATE_HISTORY);
+            _SELECT(s.end + 1, true);
         });
         return false;
     }
@@ -250,49 +264,14 @@ var HTE = function(elem, o) {
         return node.parentNode;
     }
 
-    function list(type, placeholder) {
-        var s = _SELECTION(),
-            list = type,
-            li = opt.LI,
-            list_ = list.split(' ')[0],
-            li_ = li.split(' ')[0], end;
-        if (s.value.length) {
-            var isListed = /([\s\S]*?)<(?:ol|ul)(>| .*?>)([\s\S]*?)<\/(?:ol|ul)>([\s\S]*?)/g;
-            if (s.value == placeholder) {
-                _SELECT();
-            } else if (s.value.match(isListed)) {
-                _REPLACE(isListed, '$1<' + list_ + '$2$3</' + list_ + '>$4');
-            } else {
-                _TIDY('\n\n', function() {
-                    _INSERT('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + s.value.replace(/\n/g, '</' + li_ + '>\n' + opt.tabSize + '<' + li + '>').replace(new RegExp('\\n(' + opt.tabSize + ')?<' + li + '><\\/' + li_ + '>\\n', 'g'), '\n</' + list_ + '>\n\n<' + list + '>\n') + '</' + li_ + '>\n</' + list_ + '>');
-                }, '\n\n', true);
-            }
-        } else {
-            if (s.after.match(new RegExp('^<\\/' + li_ + '>'))) {
-                var indentBefore = /(?:^|\n)([\t ]*).*?$/.exec(s.before),
-                    indent = indentBefore ? indentBefore[1] : "";
-                _INSERT('\n' + indent + opt.tabSize + '<' + list + '>\n' + indent + opt.tabSize + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n' + indent + opt.tabSize + '</' + list_ + '>\n' + indent, function() {
-                    end = _SELECTION().end - indent.length - 1 - 1 - list_.length - 2 - opt.tabSize.length - indent.length - 1 - 1 - li_.length - 2;
-                    _SELECT(end - placeholder.length, end, _UPDATE_HISTORY);
-                });
-            } else if (s.before.match(/<\/(?:ol|ul)>\s?$/)) {
-                _AREA.value = s.before.replace(/<(?:ol|ul)(>| .*?>)([\s\S]*?)<\/(?:ol|ul)>(\s?)$/g, '<' + list_ + '$1$2</' + list_ + '>$3') + s.after;
-                _SELECT(s.end, _UPDATE_HISTORY);
-            } else {
-                _TIDY('\n\n', function() {
-                    _INSERT('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n</' + list_ + '>', function() {
-                        s = _SELECTION();var end = s.end - 4 - list_.length - 3 - li_.length;
-                        _SELECT(end - placeholder.length, end, _UPDATE_HISTORY);
-                    });
-                }, '\n\n', true);
-            }
-        }
-    }
-
     var opt = extend(defaults, o),
         nav = doc.createElement('span');
 
-    // Access the Generated DOM
+    // Configuration (original)
+    // @see `base.grip.config`
+    base.config = opt;
+
+    // DOM Accessor
     base.DOM = {
         overlay: overlay,
         modal: modal,
@@ -300,9 +279,11 @@ var HTE = function(elem, o) {
     };
 
     // Escapes for `RegExp()`
-    var re_TAB = escape(opt.tabSize),
-        re_P_ = escape(opt.P.split(' ')[0]),
-        re_LI_ = escape(opt.LI.split(' ')[0]);
+    var re_UL = escape(opt.UL).replace(/\\[-+*]/g, '[-+*]'),
+        re_OL = escape(opt.OL).replace(/%d/g, '\\d+'),
+        re_TAB = escape(opt.tabSize),
+        re_PRE = escape(opt.PRE),
+        re_BLOCKQUOTE = escape(opt.BLOCKQUOTE);
 
     // Base Shortcut
     base.shortcuts = [];
@@ -340,9 +321,11 @@ var HTE = function(elem, o) {
             fx_left = 'left' in offset,
             fx_top = 'top' in offset;
         m_s.visibility = 'hidden';
-        page.appendChild(overlay);
-        page.appendChild(modal);
-        win.setTimeout(function() {
+        _TIMER(function() {
+            page.appendChild(overlay);
+            page.appendChild(modal);
+        }, .1);
+        _TIMER(function() {
             var w = modal.offsetWidth,
                 h = modal.offsetHeight;
             m_s.position = 'absolute';
@@ -391,7 +374,7 @@ var HTE = function(elem, o) {
                     m_s.top = (top - scroll) + 'px';
                 }
             });
-        }, 10);
+        }, .2);
         // `callback(overlay, modal, header, content, footer)`
         var ch = modal.children;
         if (is_function(callback)) callback(overlay, modal, ch[0], ch[1], ch[2]);
@@ -418,8 +401,10 @@ var HTE = function(elem, o) {
             fx_left = 'left' in offset,
             fx_top = 'top' in offset;
         d_s.visibility = 'hidden';
-        page.appendChild(drop);
-        win.setTimeout(function() {
+        _TIMER(function() {
+            page.appendChild(drop);
+        }, .1);
+        _TIMER(function() {
             var w = drop.offsetWidth,
                 h = drop.offsetHeight;
             d_s.position = 'absolute';
@@ -437,7 +422,7 @@ var HTE = function(elem, o) {
                 d_s.top = (v_h - h) + 'px';
                 d_s.marginTop = 0;
             }
-        }, 10);
+        }, .2);
         if (is_function(callback)) callback(drop);
     };
 
@@ -446,31 +431,31 @@ var HTE = function(elem, o) {
         base.modal('prompt', function(o, m, h, c, f) {
             var success = function(value) {
                 if (is_function(callback)) {
-                    base.close();
+                    base.exit();
                     callback(value);
                 } else {
-                    base.close(true);
+                    base.exit(true);
                 }
             };
             var input = doc.createElement('input');
                 input.type = 'text';
                 input.value = value;
             addEvent(input, "keydown", function(e) {
-                var k = e.keyCode;
-                if (k == 27) return base.close(true), false;
-                if (k == 40) return OK.focus(), false;
+                var k = _KEY(e);
+                if (k == 'escape') return base.exit(true), false;
+                if (k == 'arrowdown') return OK.focus(), false;
                 if (required) {
-                    if (k == 13 && this.value !== "" && this.value !== value) {
+                    if (k == 'enter' && this.value !== "" && this.value !== value) {
                         return success(this.value), false;
                     }
                 } else {
-                    if (k == 13) {
+                    if (k == 'enter') {
                         return success(this.value == value ? "" : this.value), false;
                     }
                 }
             });
             var OK = doc.createElement('button');
-                OK.innerHTML = opt.buttons.ok;
+                OK.innerHTML = opt.actions.ok;
             addEvent(OK, "click", function() {
                 if (required) {
                     if (input.value !== "" && input.value !== value) success(input.value);
@@ -480,30 +465,32 @@ var HTE = function(elem, o) {
                 return false;
             });
             var CANCEL = doc.createElement('button');
-                CANCEL.innerHTML = opt.buttons.cancel;
+                CANCEL.innerHTML = opt.actions.cancel;
             addEvent(CANCEL, "click", function() {
-                return base.close(true), false;
+                return base.exit(true), false;
             });
             addEvent(OK, "keydown", function(e) {
-                var k = e.keyCode;
-                if (k == 27) return base.close(true), false;
-                if (k == 38) return input.focus(), false;
-                if (k == 39 || k == 40) return CANCEL.focus(), false;
+                var k = _KEY(e);
+                if (k == 'escape') return base.exit(true), false;
+                if (k == 'arrowup') return input.focus(), false;
+                if (k == 'arrowright') return CANCEL.focus(), false;
+                if (k == 'arrowdown' || k == 'arrowleft') return false;
             });
             addEvent(CANCEL, "keydown", function(e) {
-                var k = e.keyCode;
-                if (k == 27) return base.close(true), false;
-                if (k == 37 || k == 38) return OK.focus(), false;
-                if (k == 40) return false;
+                var k = _KEY(e);
+                if (k == 'escape') return base.exit(true), false;
+                if (k == 'arrowup') return input.focus(), false;
+                if (k == 'arrowleft') return OK.focus(), false;
+                if (k == 'arrowdown' || k == 'arrowright') return false;
             });
             h.innerHTML = title ? title : "";
             c.appendChild(input);
             f.appendChild(OK);
             f.appendChild(doc.createTextNode(' '));
             f.appendChild(CANCEL);
-            win.setTimeout(function() {
+            _TIMER(function() {
                 input.select();
-            }, 10);
+            }, .2);
         }, offset);
     };
 
@@ -511,25 +498,25 @@ var HTE = function(elem, o) {
     base.alert = function(title, message, callback, offset) {
         base.modal('alert', function(o, m, h, c, f) {
             var OK = doc.createElement('button');
-                OK.innerHTML = opt.buttons.ok;
+                OK.innerHTML = opt.actions.ok;
             addEvent(OK, "click", function() {
                 if (is_function(callback)) {
-                    base.close();
+                    base.exit();
                     callback();
                 } else {
-                    base.close(true);
+                    base.exit(true);
                 }
                 return false;
             });
             addEvent(OK, "keydown", function(e) {
-                if (e.keyCode == 27) return base.close(true), false;
+                if (_KEY(e, 'escape')) return base.exit(true), false;
             });
             h.innerHTML = title ? title : "";
             c.innerHTML = message ? message : "";
             f.appendChild(OK);
-            win.setTimeout(function() {
+            _TIMER(function() {
                 OK.focus();
-            }, 10);
+            }, .2);
         }, offset);
     };
 
@@ -537,59 +524,60 @@ var HTE = function(elem, o) {
     base.confirm = function(title, message, callback, offset) {
         base.modal('confirm', function(o, m, h, c, f) {
             var OK = doc.createElement('button');
-                OK.innerHTML = opt.buttons.ok;
+                OK.innerHTML = opt.actions.ok;
             addEvent(OK, "click", function() {
                 if (is_set(callback)) {
                     if (is_function(callback.OK)) {
-                        base.close();
+                        base.exit();
                         callback.OK();
                     } else {
-                        base.close(true);
+                        base.exit(true);
                     }
                 } else {
-                    base.close(true);
+                    base.exit(true);
                 }
                 return false;
             });
             var CANCEL = doc.createElement('button');
-                CANCEL.innerHTML = opt.buttons.cancel;
+                CANCEL.innerHTML = opt.actions.cancel;
             addEvent(CANCEL, "click", function() {
                 if (is_set(callback)) {
                     if (is_function(callback.CANCEL)) {
-                        base.close();
+                        base.exit();
                         callback.CANCEL();
                     } else {
-                        base.close(true);
+                        base.exit(true);
                     }
                 } else {
-                    base.close(true);
+                    base.exit(true);
                 }
                 return false;
             });
             addEvent(OK, "keydown", function(e) {
-                var k = e.keyCode;
-                if (k == 27) return base.close(true), false;
-                if (k == 39 || k == 40) return CANCEL.focus(), false;
+                var k = _KEY(e);
+                if (k == 'escape') return base.exit(true), false;
+                if (k == 'arrowright') return CANCEL.focus(), false;
+                if (k == 'arrowleft' || k == 'arrowdown') return false;
             });
             addEvent(CANCEL, "keydown", function(e) {
-                var k = e.keyCode;
-                if (k == 27) return base.close(true), false;
-                if (k == 37 || k == 38) return OK.focus(), false;
-                if (k == 40) return false;
+                var k = _KEY(e);
+                if (k == 'escape') return base.exit(true), false;
+                if (k == 'arrowleft') return OK.focus(), false;
+                if (k == 'arrowright' || k == 'arrowdown') return false;
             });
             h.innerHTML = title ? title : "";
             c.innerHTML = message ? message : "";
             f.appendChild(OK);
             f.appendChild(doc.createTextNode(' '));
             f.appendChild(CANCEL);
-            win.setTimeout(function() {
+            _TIMER(function() {
                 CANCEL.focus();
-            }, 10);
+            }, .2);
         }, offset);
     };
 
     // Close Drop and Modal
-    base.close = function(select) {
+    base.exit = base.close = function(select) {
         button = null;
         drag = null;
         if (node_exist(overlay)) page.removeChild(overlay);
@@ -612,7 +600,7 @@ var HTE = function(elem, o) {
     });
 
     addEvent(overlay, "click", function() {
-        base.close(true);
+        base.exit(true);
     });
 
     // Scroll the `<textarea>`
@@ -655,7 +643,10 @@ var HTE = function(elem, o) {
 
     if (opt.toolbar) {
         nav.className = opt.toolbarClass;
-        _AREA.parentNode.insertBefore(nav, opt.toolbarPosition == "before" ? _AREA : null);
+        addEvent(nav, "click", function() {
+            return base.exit(false), false;
+        });
+        _AREA.parentNode.insertBefore(nav, opt.toolbarPosition.match(/^after|bottom$/i) ? null : _AREA);
     }
 
     var release = doc.createElement('a');
@@ -669,12 +660,14 @@ var HTE = function(elem, o) {
         if (key === '|') return base.separator(data);
         data = data || {};
         if (data.title === false) return;
+        if (!is_object(data.title)) data.title = [data.title];
         var btn = doc.createElement('a'), pos;
             btn.className = opt.toolbarButtonClass.replace(/%s/g, key);
             btn.setAttribute('tabindex', -1);
             btn.href = '#' + key.replace(' ', ':').replace(/[^a-z0-9\:]/gi, '-').replace(/-+/g,'-').replace(/^-|-$/g, "");
             btn.innerHTML = data.text ? data.text.replace(/%s/g, key) : '<i class="' + opt.toolbarIconClass.replace(/%s/g, key) + '"></i>';
-        if (data.title) btn.title = data.title;
+        if (data.title[0]) btn.title  = data.title[0];
+        if (data.title[1]) btn.title += ' (' + data.title[1] + ')';
         if (is_object(data.attr)) {
             for (var i in data.attr) {
                 if (is_string(data.attr[i]) && data.attr[i].slice(0, 2) == '+=') {
@@ -688,7 +681,6 @@ var HTE = function(elem, o) {
         addEvent(btn, "click", function(e) {
             if (is_function(data.click)) {
                 var hash = this.hash.replace('#', "");
-                base.close();
                 button = btn;
                 data.click(e, base);
                 opt.click(e, base, hash);
@@ -697,7 +689,7 @@ var HTE = function(elem, o) {
             }
         });
         addEvent(btn, "keydown", function(e) {
-            if (e.keyCode == 27) return base.close(true), false;
+            if (_KEY(e, 'escape')) return base.exit(true), false;
         });
         if (is_number(data.position)) {
             pos = data.position < 0 ? data.position + nav.children.length + 1 : data.position - 1;
@@ -754,28 +746,67 @@ var HTE = function(elem, o) {
         var s = _SELECTION();
         if (s.before.slice(-open.length) != open && s.after.slice(0, close.length) != close) {
             _WRAP(open, close, !s.value.length && placeholder ? function() {
-                _REPLACE(/^/, placeholder === true ? opt.placeholders.text : placeholder);
-            } : 1);
+                _REPLACE(/^/, placeholder === true ? opt.placeholders.text : placeholder, callback);
+            } : true);
         } else {
             var clean_B = s.before.slice(-open.length) == open ? s.before.slice(0, -open.length) : s.before,
                 clean_A = s.after.slice(0, close.length) == close ? s.after.slice(close.length) : s.after;
             _AREA.value = clean_B + s.value + clean_A;
-            _SELECT(clean_B.length, clean_B.length + s.value.length, _UPDATE_HISTORY);
+            _SELECT(clean_B.length, (clean_B + s.value).length, callback || true);
         }
-        if (is_function(callback)) callback();
     };
 
     var  T = 0, btn = opt.buttons,
         _TIDY = editor.tidy,
         _TOGGLE = editor.toggle;
 
+    function list(type, placeholder) {
+        var s = _SELECTION(),
+            list = type,
+            li = opt.LI,
+            list_ = list.split(' ')[0],
+            li_ = li.split(' ')[0], end;
+        if (s.value.length) {
+            var isListed = /([\s\S]*?)<(?:ol|ul)(>| .*?>)([\s\S]*?)<\/(?:ol|ul)>([\s\S]*?)/g;
+            if (s.value == placeholder) {
+                _SELECT();
+            } else if (s.value.match(isListed)) {
+                _REPLACE(isListed, '$1<' + list_ + '$2$3</' + list_ + '>$4');
+            } else {
+                _TIDY(NN, function() {
+                    _INSERT('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + s.value.replace(/\n/g, '</' + li_ + '>\n' + opt.tabSize + '<' + li + '>').replace(new RegExp('\\n(' + opt.tabSize + ')?<' + li + '><\\/' + li_ + '>\\n', 'g'), '\n</' + list_ + '>\n\n<' + list + '>\n') + '</' + li_ + '>\n</' + list_ + '>');
+                }, NN, true);
+            }
+        } else {
+            if (s.after.match(new RegExp('^<\\/' + li_ + '>'))) {
+                var indent_B = /(?:^|\n)([\t ]*).*?$/.exec(s.before),
+                    indent = indent_B ? indent_B[1] : "";
+                _INSERT('\n' + indent + opt.tabSize + '<' + list + '>\n' + indent + opt.tabSize + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n' + indent + opt.tabSize + '</' + list_ + '>\n' + indent, function() {
+                    end = _SELECTION().end - (list_ + opt.tabSize + li_ + indent + indent).length - 8;
+                    _SELECT(end - placeholder.length, end, true);
+                });
+            } else if (s.before.match(/<\/(?:ol|ul)>\s?$/)) {
+                _AREA.value = s.before.replace(/<(?:ol|ul)(>| .*?>)([\s\S]*?)<\/(?:ol|ul)>(\s?)$/g, '<' + list_ + '$1$2</' + list_ + '>$3') + s.after;
+                _SELECT(s.end, true);
+            } else {
+                _TIDY(NN, function() {
+                    _INSERT('<' + list + '>\n' + opt.tabSize + '<' + li + '>' + placeholder + '</' + li_ + '>\n</' + list_ + '>', function() {
+                        s = _SELECTION();
+                        end = s.end - (list_ + li_).length - 7;
+                        _SELECT(end - placeholder.length, end, true);
+                    });
+                }, NN, true);
+            }
+        }
+    }
+
     var toolbars = {
         'bold': {
             title: btn.bold,
             click: function() {
                 var strong = opt.STRONG;
-                _TIDY(' ', function() {
-                    _TOGGLE('<' + strong + '>', '</' + strong.split(' ')[0] + '>', 1, true);
+                _TIDY(SS, function() {
+                    _TOGGLE('<' + strong + '>', '</' + strong.split(' ')[0] + '>', true, true);
                 });
             }
         },
@@ -783,8 +814,8 @@ var HTE = function(elem, o) {
             title: btn.italic,
             click: function() {
                 var em = opt.EM;
-                _TIDY(' ', function() {
-                    _TOGGLE('<' + em + '>', '</' + em.split(' ')[0] + '>', 1, true);
+                _TIDY(SS, function() {
+                    _TOGGLE('<' + em + '>', '</' + em.split(' ')[0] + '>', true, true);
                 });
             }
         },
@@ -792,8 +823,8 @@ var HTE = function(elem, o) {
             title: btn.underline,
             click: function() {
                 var u = opt.U;
-                _TIDY(' ', function() {
-                    _TOGGLE('<' + u + '>', '</' + u.split(' ')[0] + '>', 1, true);
+                _TIDY(SS, function() {
+                    _TOGGLE('<' + u + '>', '</' + u.split(' ')[0] + '>', true, true);
                 });
             }
         },
@@ -803,8 +834,8 @@ var HTE = function(elem, o) {
                 var t = base.time(),
                     strike = opt.STRIKE;
                 strike = strike.replace(/%Y/g, t.Y).replace(/%m/g, t.m).replace(/%d/g, t.d).replace(/%H/g, t.H).replace(/%i/g, t.i).replace(/%s/g, t.s).replace(/%u/g, t.u);
-                _TIDY(' ', function() {
-                    _TOGGLE('<' + strike + '>', '</' + strike.split(' ')[0] + '>', 1, true);
+                _TIDY(SS, function() {
+                    _TOGGLE('<' + strike + '>', '</' + strike.split(' ')[0] + '>', true, true);
                 });
             }
         },
@@ -826,9 +857,9 @@ var HTE = function(elem, o) {
                             _REPLACE(/^/, '<' + p + '>', noop);
                             _REPLACE(/$/, '</' + p_ + '>', noop);
                             _REPLACE(/\n/g, '</' + p_ + '>\n<' + p + '>', noop);
-                            _REPLACE(new RegExp('<' + p_ + '(>| .*?>)<\\/' + p_ + '>', 'g'), "", noop);
-                            _REPLACE(new RegExp('(<' + p_ + '(>| .*?>))+', 'g'), '$1', noop);
-                            _REPLACE(new RegExp('(<\\/' + p_ + '>)+', 'g'), '$1');
+                            _REPLACE(new RegExp('<' + p_e_ + '(>| .*?>)<\\/' + p_e_ + '>', 'g'), "", noop);
+                            _REPLACE(new RegExp('(<' + p_e_ + '(>| .*?>))+', 'g'), '$1', noop);
+                            _REPLACE(new RegExp('(<\\/' + p_e_ + '>)+', 'g'), '$1');
                         }
                     }
                 } else {
@@ -839,9 +870,9 @@ var HTE = function(elem, o) {
                     } else {
                         var p_B = !s.before.match(new RegExp('<\\/' + p_ + '>\\s*$')),
                             p_A = !s.after.match(new RegExp('^\\s*<' + p_ + '(>| .*?>)'));
-                        _TIDY(p_B ? '\n\n' : '\n', function() {
-                            _TOGGLE('<' + p + '>', '</' + p_ + '>', 1, true);
-                        }, p_A ? '\n\n' : '\n', true);
+                        _TIDY(p_B ? NN : '\n', function() {
+                            _TOGGLE('<' + p + '>', '</' + p_ + '>', true, true);
+                        }, p_A ? NN : '\n', true);
                     }
                 }
             }
@@ -850,16 +881,16 @@ var HTE = function(elem, o) {
             title: btn.quote,
             click: function() {
                 var s = _SELECTION(),
-                    quote = opt.QUOTE,
+                    quote = opt.Q,
                     blockquote = opt.BLOCKQUOTE;
                 if (s.before.match(/(^|\n)$/)) {
-                    _TIDY('\n\n', function() {
-                        _TOGGLE('<' + blockquote + '>', '</' + blockquote.split(' ')[0] + '>', 1, true);
-                    }, '\n\n', true);
+                    _TIDY(NN, function() {
+                        _TOGGLE('<' + blockquote + '>\n', '\n</' + blockquote.split(' ')[0] + '>', true, true);
+                    }, NN, !s.before.match(/\n$/));
                 } else {
-                    _TIDY(' ', function() {
+                    _TIDY(SS, function() {
                         quote = s.before.match(new RegExp('<' + blockquote.split(' ')[0] + '(>| .*?>)$')) ? blockquote : quote;
-                        _TOGGLE('<' + quote + '>', '</' + quote.split(' ')[0] + '>', 1, true);
+                        _TOGGLE('<' + quote + '>', '</' + quote.split(' ')[0] + '>', true, true);
                     });
                 }
             }
@@ -873,7 +904,7 @@ var HTE = function(elem, o) {
                     code_ = code.split(' ')[0],
                     pre_ = pre.split(' ')[0],
                     is_inline = !s.before.match(/(^|\n)$/),
-                    tidy = is_inline ? ' ' : '\n\n',
+                    tidy = is_inline ? SS : NN,
                     tag_open = is_inline ? '<' + code + '>' : '<' + pre + '><' + code + '>',
                     tag_close = is_inline ? '</' + code_ + '>' : '</' + code_ + '></' + pre_ + '>';
                 _TIDY(tidy, noop, tidy, !is_inline);
@@ -891,16 +922,16 @@ var HTE = function(elem, o) {
                             clean_V = clean_V.replace(/&amp;/g, '&').replace(/&lt;/g, '<').replace(/&gt;/g, '>');
                         }
                         _AREA.value = clean_B + clean_V + clean_A;
-                        _SELECT(clean_B.length, clean_B.length + clean_V.length, _UPDATE_HISTORY);
+                        _SELECT(clean_B.length, (clean_B + clean_V).length, true);
                     } else {
                         if (opt.autoEncodeHTML) {
                             clean_V = clean_V.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
                         }
                         _AREA.value = clean_B + tag_open + clean_V + tag_close + clean_A;
-                        _SELECT(clean_B.length + tag_open.length, clean_B.length + clean_V.length + tag_open.length, _UPDATE_HISTORY);
+                        _SELECT((clean_B + tag_open).length, (clean_B + clean_V + tag_open).length, true);
                     }
                 } else {
-                    _TOGGLE(tag_open, tag_close, 1, true);
+                    _TOGGLE(tag_open, tag_close, true, true);
                 }
             }
         },
@@ -918,8 +949,8 @@ var HTE = function(elem, o) {
                     clean_B = trim_(s.before.replace(new RegExp(re + '$'), "")),
                     clean_V = trim(s.value.replace(new RegExp('^' + re + '|' + re + '$', 'g'), "").replace(/\n+/g, ' ')),
                     clean_A = _trim(s.after.replace(new RegExp('^' + re), "")),
-                    s_B = clean_B.length ? '\n\n' : "",
-                    s_A = clean_A.length ? '\n\n' : "",
+                    s_B = clean_B.length ? NN : "",
+                    s_A = clean_A.length ? NN : "",
                     tag_end = s.value.match(new RegExp('^' + re)) ? new RegExp('^' + re).exec(s.value) : new RegExp(re + '$').exec(s.before), end, h_o, h_o_;
                 tag_end = tag_end ? tag_end[1] : '>';
                 T = T < 6 ? T + 1 : 0;
@@ -932,17 +963,17 @@ var HTE = function(elem, o) {
                     } else {
                         h_o_ = h_.replace(/%d/g, T);
                         _AREA.value = clean_B + s_B + '<' + (T > 0 ? h_o_ : p_) + tag_end + clean_V + '</' + (T > 0 ? h_o_ : p_) + '>' + s_A + clean_A;
-                        end = clean_B.length + s_B.length + 1 + (T > 0 ? h_o_.length : p_.length) + tag_end.length;
+                        end = (clean_B + s_B + tag_end + (T > 0 ? h_o_ : p_)).length + 1;
                     }
-                    _SELECT(end, end + clean_V.length, _UPDATE_HISTORY);
+                    _SELECT(end, end + clean_V.length, true);
                 } else {
                     var placeholder = opt.placeholders.heading_text;
                     h = h.replace(/%d/g, 1);
                     h_ = h_.replace(/%d/g, 1);
                     T = 1;
                     _AREA.value = trim_(s.before) + s_B + '<' + h + '>' + placeholder + '</' + h_ + '>' + s_A + clean_A;
-                    end = trim_(s.before).length + s_B.length + 1 + h.length + 1;
-                    _SELECT(end, end + placeholder.length, _UPDATE_HISTORY);
+                    end = (trim_(s.before) + s_B + h).length + 2;
+                    _SELECT(end, end + placeholder.length, true);
                 }
             }
         },
@@ -953,15 +984,21 @@ var HTE = function(elem, o) {
                     a = opt.A,
                     a_ = a.split(' ')[0],
                     placeholder = opt.placeholders.link_text,
-                    title, url, end;
+                    title, url;
+                _UPDATE_HISTORY(); // save text selection ...
                 base.prompt(opt.prompts.link_url_title, opt.prompts.link_url, true, function(r) {
                     url = r;
+                    // automatic `rel="nofollow"` attribute
+                    var external, str;
+                    if (url.indexOf('://') !== -1) external = true;
+                    if (win.location.host !== "" && url.indexOf('://' + win.location.host) !== -1) external = false;
                     base.prompt(opt.prompts.link_title_title, opt.prompts.link_title, false, function(r) {
-                        _TIDY(' ', function() {
+                        str = external ? ' rel="nofollow" target="_blank"' : "";
+                        _TIDY(SS, function() {
                             title = r.replace(/'/g, '&apos;').replace(/"/g, '&quot;');
-                            _WRAP('<' + a + ' href="' + url + '"' + (title !== "" ? ' title=\"' + title + '\"' : "") + '>', '</' + a_ + '>', !s.value.length ? function() {
+                            _WRAP('<' + a + ' href="' + url + '"' + (title !== "" ? ' title=\"' + title + '\"' : "") + str + '>', '</' + a_ + '>', !s.value.length ? function() {
                                 _REPLACE(/^/, placeholder);
-                            } : 1);
+                            } : true);
                         });
                         opt.update(e, base);
                     });
@@ -971,22 +1008,33 @@ var HTE = function(elem, o) {
         'image': {
             title: btn.image,
             click: function(e) {
+                var url, caption;
+                _UPDATE_HISTORY(); // save text selection ...
                 base.prompt(opt.prompts.image_url_title, opt.prompts.image_url, true, function(r) {
-                    _TIDY('\n\n', function() {
-                        var s = _SELECTION(),
-                            alt = trim(s.value.length ? s.value : decodeURIComponent(
-                                r.split('/').pop().replace(/\..*$/, "").replace(/[-+._]+/g, ' ')
-                            ).toLowerCase().replace(/(?:^|\s)\S/g, function(a) {
-                                return a.toUpperCase();
-                            }));
-                        if (!alt.length) alt = opt.placeholders.image_alt;
-                        _INSERT('<' + opt.IMG + ' alt="' + alt + '" src="' + r + '"' + opt.emptyElementSuffix, function() {
-                            s = _SELECTION();
-                            if (!s.after.length) _AREA.value += '\n\n';
-                            _SELECT(s.end + 2, _UPDATE_HISTORY);
-                        });
-                    }, '\n\n', true);
-                    opt.update(e, base);
+                    url = r;
+                    base.prompt(opt.prompts.image_title_title, opt.prompts.image_title, false, function(r) {
+                        caption = r;
+                        _TIDY(NN, function() {
+                            var s = _SELECTION(),
+                                alt = trim(s.value.length ? s.value : decodeURIComponent(
+                                    url.split('/').pop().replace(/\..*$/, "").replace(/[-+._]/g, ' ')
+                                ).toLowerCase().replace(/(?:^|\s)\S/g, function(a) {
+                                    return a.toUpperCase();
+                                }));
+                            if (!alt.length) alt = opt.placeholders.image_alt;
+                            var B = "", A = "", figure = opt.FIGURE, figcaption = opt.FIGCAPTION;
+                            if (caption !== "") {
+                                B = '<' + figure + '>\n' + opt.tabSize;
+                                A = '\n' + opt.tabSize + '<' + figcaption + '>' + caption + '</' + figcaption.split(' ')[0] + '>\n</' + figure.split(' ')[0] + '>';
+                            }
+                            _INSERT(B + '<' + opt.IMG + ' alt="' + alt + '" src="' + url + '"' + opt.emptyElementSuffix + A, function() {
+                                s = _SELECTION();
+                                if (!s.after.length) _AREA.value += NN;
+                                _SELECT(s.end + 2, true);
+                            });
+                        }, NN, true);
+                        opt.update(e, base);
+                    });
                 });
             }
         },
@@ -1006,8 +1054,8 @@ var HTE = function(elem, o) {
             title: btn.superscript,
             click: function() {
                 var sup = opt.SUP;
-                _TIDY(' ', function() {
-                    _TOGGLE('<' + sup + '>', '</' + sup.split(' ')[0] + '>', 1, true);
+                _TIDY(SS, function() {
+                    _TOGGLE('<' + sup + '>', '</' + sup.split(' ')[0] + '>', true, true);
                 });
             }
         },
@@ -1015,19 +1063,19 @@ var HTE = function(elem, o) {
             title: btn.subscript,
             click: function() {
                 var sub = opt.SUB;
-                _TIDY(' ', function() {
-                    _TOGGLE('<' + sub + '>', '</' + sub.split(' ')[0] + '>', 1, true);
+                _TIDY(SS, function() {
+                    _TOGGLE('<' + sub + '>', '</' + sub.split(' ')[0] + '>', true, true);
                 });
             }
         },
         'ellipsis-h': {
             title: btn.rule,
             click: function() {
-                _TIDY('\n\n', function() {
+                _TIDY(NN, function() {
                     _INSERT('<' + opt.HR + opt.emptyElementSuffix, function() {
                         var s = _SELECTION();
-                        if (!s.after.length) _AREA.value += '\n\n';
-                        _SELECT(s.end + 2, _UPDATE_HISTORY);
+                        if (!s.after.length) _AREA.value += NN;
+                        _SELECT(s.end + 2, true);
                     });
                 })
             }
@@ -1044,30 +1092,30 @@ var HTE = function(elem, o) {
 
     for (var i in toolbars) base.button(i, toolbars[i]);
 
-    addEvent(_AREA, "focus", base.close);
+    addEvent(_AREA, "focus", base.exit);
 
     addEvent(_AREA, "copy", function(e) {
         var s = _SELECTION();
-        win.setTimeout(function() {
+        _TIMER(function() {
             opt.copy(s), opt.update(e, base);
-        }, 1);
+        }, .1);
     });
 
     addEvent(_AREA, "cut", function(e) {
         var s = _SELECTION();
-        win.setTimeout(function() {
+        _TIMER(function() {
             s.end = s.start;
             opt.cut(s), opt.update(e, base), _UPDATE_HISTORY();
-        }, 1);
+        }, .1);
     });
 
     addEvent(_AREA, "paste", function(e) {
         var s = _SELECTION();
-        win.setTimeout(function() {
+        _TIMER(function() {
             s.end = _SELECTION().end;
             s.value = _AREA.value.substring(s.start, s.end);
             opt.paste(s), opt.update(e, base), _UPDATE_HISTORY();
-        }, 1);
+        }, .1);
     });
 
     addEvent(_AREA, "keydown", function(e) {
@@ -1078,79 +1126,75 @@ var HTE = function(elem, o) {
             sa = s.after,
             ss = s.start,
             se = s.end,
-            k = e.keyCode,
+            k = _KEY(e),
             ctrl = e.ctrlKey,
             shift = e.shiftKey,
             alt = e.altKey,
-            tab = k == 9;
+            tab = k == 'tab';
 
-        win.setTimeout(function() {
+        _TIMER(function() {
             opt.keydown(e, base), opt.update(e, base);
-        }, 1);
+        }, .1);
 
         for (var i in base.shortcuts) {
-            var shc = i.split('+'), valid = 0;
+            var shc = i.replace(/\+/g, '\n').replace(/\n\n/g, '\n+').split(/\n/),
+                valid = 0;
             for (var j in shc) {
                 if (
-                    shc[j] == 'ctrl' && ctrl ||
+                    shc[j].match(/^ctrl|control|command|cmd|meta$/) && ctrl ||
                     shc[j] == 'shift' && shift ||
-                    shc[j] == 'alt' && alt ||
+                    shc[j].match(/^alt(ernate)?|option$/) && alt ||
                     shc[j] == 'tab' && tab ||
-                    parseInt(shc[j], 10) == k
+                    shc[j] == k
                 ) valid++;
             }
             if (valid === shc.length) return base.shortcuts[i](e, base);
         }
 
-        // Disable the end bracket key if character before
-        // cursor is match with character after cursor
-        var b = sb, a = sa[0], esc = b.slice(-1) == '\\';
-        if (
-            b.indexOf('(') !== -1 && shift && k == 48 && a == ')' && !esc ||
-            b.indexOf('{') !== -1 && shift && k == 221 && a == '}' && !esc ||
-            b.indexOf('[') !== -1 && k == 221 && a == ']' && !esc ||
-            b.indexOf('"') !== -1 && shift && k == 222 && a == '"' && !esc ||
-            b.indexOf("'") !== -1 && !shift && k == 222 && a == "'" && !esc ||
-            b.indexOf('`') !== -1 && !shift && k == 192 && a == '`' && !esc ||
-            b.indexOf('<') !== -1 && shift && k == 190 && a == '>' && !esc
-        ) {
-            _SELECT(se + 1); // move caret by 1 character to the right
-            return false;
-        }
+        var b = sb, a = sa[0], esc = b.slice(-1) == '\\', kk = k == a;
 
-        // Auto close for `(`
-        if (shift && k == 57 && !esc) {
-            return insert('(' + sv + ')', s);
-        }
+        if (opt.autoComplete && !esc) {
 
-        // Auto close for `{`
-        if (shift && k == 219 && !esc) {
-            return insert('{' + sv + '}', s);
-        }
+            // Disable the end bracket key if character before
+            // cursor is match with character after cursor
+            if (
+                b.indexOf('(') !== -1 && a == ')' && kk ||
+                b.indexOf('{') !== -1 && a == '}' && kk ||
+                b.indexOf('[') !== -1 && a == ']' && kk ||
+                b.indexOf('<') !== -1 && a == '>' && kk ||
+                b.indexOf('"') !== -1 && a == '"' && kk ||
+                b.indexOf("'") !== -1 && a == "'" && kk ||
+                b.indexOf('`') !== -1 && a == '`' && kk
+            ) {
+                _SELECT(se + 1); // move caret by 1 character to the right
+                return false;
+            }
 
-        // Auto close for `[`
-        if (!shift && k == 219 && !esc) {
-            return insert('[' + sv + ']', s);
-        }
+            // Auto close for `(`
+            if (k == '(') return insert('(' + sv + ')', s);
 
-        // Auto close for `"`
-        if (shift && k == 222 && !esc) {
-            return insert('"' + sv + '"', s);
-        }
+            // Auto close for `{`
+            if (k == '{') return insert('{' + sv + '}', s);
 
-        // Auto close for `'`
-        if (!shift && k == 222 && !esc && !sb.match(/\w$/)) {
-            return insert("'" + sv + "'", s);
-        }
+            // Auto close for `[`
+            if (k == '[') return insert('[' + sv + ']', s);
 
-        // Auto close for ```
-        if (!shift && k == 192 && !esc && !sb.match(/\w$/)) {
-            return insert('`' + sv + '`', s);
-        }
+            // Auto close for `<`
+            if (k == '<') return insert('<' + sv + '>', s);
 
-        // Auto close for `<`
-        if (shift && k == 188 && !esc) {
-            return insert('<' + sv + '>', s);
+            // Auto close for `"`
+            if (k == '"') return insert('"' + sv + '"', s);
+
+            if (!sb.match(/\w$/)) {
+
+                // Auto close for `'`
+                if (k == "'") return insert("'" + sv + "'", s);
+
+                // Auto close for ```
+                if (k == '`' && !sb.match(/\w$/)) return insert('`' + sv + '`', s);
+
+            }
+
         }
 
         // `Shift + Tab` to "outdent"
@@ -1163,9 +1207,13 @@ var HTE = function(elem, o) {
             // Auto close for HTML tags
             // Case `<div|>`
             if (sb.match(/<[^\/>]*?$/) && sa[0] == '>') {
-                var match = /<([^\/>]*?)$/.exec(sb);
-                _AREA.value = sb + ' ' + sv + '></' + match[1].split(' ')[0] + sa;
-                _SELECT(ss + 1, _UPDATE_HISTORY);
+                var match = /<([^\/>]*?)$/.exec(sb), m1 = match[1].split(' ')[0];
+                if (m1.match(/^hr|img|link|meta$/)) {
+                    _AREA.value = sb + ' ' + opt.emptyElementSuffix + sa.substring(1);
+                } else {
+                    _AREA.value = sb + ' ></' + m1 + sa;
+                }
+                _SELECT(ss + 1, true);
                 return false;
             }
             // `Tab` to "indent"
@@ -1174,133 +1222,80 @@ var HTE = function(elem, o) {
         }
 
         // `Ctrl + Z` to "undo"
-        if (ctrl && k == 90) {
-            editor.undo();
-            return false;
-        }
+        if (ctrl && k == 'z') return editor.undo(), false;
 
         // `Ctrl + Y` to "redo"
-        if (ctrl && k == 89) {
-            editor.redo();
-            return false;
-        }
+        if (ctrl && k == 'y') return editor.redo(), false;
 
-        if (opt.toolbar && opt.shortcut) {
+        if (opt.toolbar && opt.shortcut && ctrl) {
 
             // `Ctrl + B` for "bold"
-            if (ctrl && k == 66) {
-                toolbars.bold.click();
-                return false;
-            }
+            if (k == 'b') return toolbars.bold.click(), false;
 
             // `Ctrl + G` for "image"
-            if (ctrl && k == 71) {
-                toolbars.image.click();
-                return false;
-            }
+            if (k == 'g') return toolbars.image.click(), false;
 
             // `Ctrl + H` for "heading"
-            if (ctrl && k == 72) {
-                toolbars.header.click();
-                return false;
-            }
+            if (k == 'h') return toolbars.header.click(), false;
 
             // `Ctrl + I` for "italic"
-            if (ctrl && k == 73) {
-                toolbars.italic.click();
-                return false;
-            }
+            if (k == 'i') return toolbars.italic.click(), false;
 
             // `Ctrl + K` for "code"
-            if (ctrl && !shift && k == 75) {
-                toolbars.code.click();
-                return false;
-            }
+            if (!shift && k == 'k') return toolbars.code.click(), false;
 
             // `Ctrl + L` for "link"
-            if (ctrl && k == 76) {
-                toolbars.link.click();
-                return false;
-            }
+            if (k == 'l') return toolbars.link.click(), false;
 
             // `Ctrl + Q` for "blockquote"
-            if (ctrl && k == 81) {
-                toolbars['quote-right'].click();
-                return false;
-            }
+            if (k == 'q') return toolbars['quote-right'].click(), false;
 
             // `Ctrl + R` for "horizontal rule"
-            if (ctrl && k == 82) {
-                toolbars['ellipsis-h'].click();
-                return false;
-            }
+            if (k == 'r') return toolbars['ellipsis-h'].click(), false;
 
             // `Ctrl + U` for "underline"
-            if (ctrl && k == 85) {
-                toolbars.underline.click();
-                return false;
-            }
+            if (k == 'u') return toolbars.underline.click(), false;
 
-            // `Delete` for "strike"
-            if (sv.length && k == 46) {
-                toolbars.strikethrough.click();
-                return false;
-            }
+            // `Ctrl + Delete` for "strike"
+            if (sv.length && k == 'delete') return toolbars.strikethrough.click(), false;
 
             // `Ctrl + +` for "ordered list"
-            if (ctrl && k == 61) {
-                toolbars['list-ol'].click();
-                return false;
-            }
+            if (k == '+') return toolbars['list-ol'].click(), false;
 
             // `Ctrl + -` for "unordered list"
-            if (ctrl && k == 173) {
-                toolbars['list-ul'].click();
-                return false;
-            }
+            if (k == '-') return toolbars['list-ul'].click(), false;
 
             // `Ctrl + Arrow Up` for "superscript"
-            if (sv.length && ctrl && k == 38) {
-                toolbars['superscript'].click();
-                return false;
-            }
+            if (k == 'arrowup') return toolbars.superscript.click(), false;
 
             // `Ctrl + Arrow Down` for "subscript"
-            if (sv.length && ctrl && k == 40) {
-                toolbars['subscript'].click();
-                return false;
-            }
+            if (k == 'arrowdown') return toolbars.subscript.click(), false;
 
         }
 
         // `Enter` key was pressed
-        if (k == 13) {
+        if (k == 'enter') {
 
             // `Alt + Enter` for creating carriage return arrow
-            if (alt && sv.length === 0) return _INSERT(_u21B5), false;
+            if (alt && !sv.length) return _INSERT(_u21B5), false;
 
             // `Ctrl + Enter` for "paragraph"
-            if (opt.toolbar && ctrl) {
-                toolbars.paragraph.click();
-                return false;
-            }
+            if (opt.toolbar && ctrl) return toolbars.paragraph.click(), false;
 
             // `Shift + Enter` for "break"
-            if (opt.toolbar && shift) {
-                _INSERT('<' + opt.BR + opt.emptyElementSuffix + '\n');
-                base.scroll();
-                return false;
-            }
+            if (opt.toolbar && shift) return _INSERT('<' + opt.BR + opt.emptyElementSuffix + '\n'), base.scroll(), false;
 
+            // Automatic list increment
             if (opt.toolbar) {
 
-                var li_ = opt.LI.split(' ')[0];
+                var li_ = opt.LI.split(' ')[0],
+                    re_LI_ = escape(li_);
 
                 // Case `<li>List Item</li>|`
                 if (sb.match(new RegExp('<\\/' + re_LI_ + '>$'))) {
                     var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*?<\\/' + re_LI_ + '>$').exec(sb);
                     _INSERT('\n' + match[1] + '<' + li_ + match[2] + '</' + li_ + '>', function() {
-                        _SELECT(se + match[1].length + match[2].length + 4, _UPDATE_HISTORY);
+                        _SELECT(se + (match[1] + match[2]).length + 4, true);
                     });
                     base.scroll();
                     return false;
@@ -1314,7 +1309,8 @@ var HTE = function(elem, o) {
                     return false;
                 }
 
-                var p_ = opt.P.split(' ')[0];
+                var p_ = opt.P.split(' ')[0],
+                    re_P_ = escape(p_);
 
                 // Case `|</p>`
                 if (sa.match(new RegExp('^<\\/' + re_P_ + '>'))) {
@@ -1327,19 +1323,22 @@ var HTE = function(elem, o) {
             }
 
             // Automatic indentation
-            var indentBefore = (new RegExp('(?:^|\\n)((' + re_TAB + ')+)(.*?)$')).exec(sb),
-                indent = indentBefore ? indentBefore[1] : "";
-            if (sb.match(/[\(\{\[]$/) && sa.match(/^[\]\}\)]/) || sb.match(/<[^\/>]*?>$/) && sa.match(/^<\//)) {
-                _INSERT('\n' + indent + opt.tabSize + '\n' + indent, function() {
-                    _SELECT(ss + indent.length + opt.tabSize.length + 1, _UPDATE_HISTORY);
-                });
-                base.scroll();
-                return false;
+            if (opt.autoIndent) {
+                var indent_B = (new RegExp('(?:^|\\n)((' + re_TAB + ')+)(.*?)$')).exec(sb),
+                    indent = indent_B ? indent_B[1] : "";
+                if (sb.match(/[\(\{\[]$/) && sa.match(/^[\]\}\)]/) || sb.match(/<[^\/]*?>$/) && sa.match(/^<\//)) {
+                    _INSERT('\n' + indent + re_TAB + '\n' + indent, function() {
+                        _SELECT(ss + (indent + opt.tabSize).length + 1, true);
+                    });
+                    base.scroll();
+                    return false;
+                }
+                if (sb.match(new RegExp(re_TAB + '$'))) {
+                    _INSERT('\n' + indent);
+                    base.scroll();
+                    return false;
+                }
             }
-
-            _INSERT('\n' + indent);
-            base.scroll();
-            return false;
 
         }
 
@@ -1376,6 +1375,7 @@ var HTE = function(elem, o) {
             '<=': _u2264,
             '>=': _u2265,
             '!=': _u2260,
+            'No.': _u2116,
             '.': _u00B7
         };
 
@@ -1401,26 +1401,28 @@ var HTE = function(elem, o) {
 
                 if (sb.indexOf('"') !== -1 && sa[0] == '"') {
                     _AREA.value = sb.replace(/"([^"]*?)$/, _u201C + '$1') + _u201D + sa.slice(1);
-                    _SELECT(se, _UPDATE_HISTORY);
-                    return false;
+                    return _SELECT(se, true), false;
                 }
 
                 if (sb.indexOf("'") !== -1 && sa[0] == "'") {
                     _AREA.value = sb.replace(/'([^']*?)$/, _u2018 + '$1') + _u2019 + sa.slice(1);
-                    _SELECT(se, _UPDATE_HISTORY);
-                    return false;
+                    return _SELECT(se, true), false;
                 }
 
                 if (sb.slice(-2).match(/\w'$/i)) {
                     _AREA.value = sb.slice(0, -1) + _u2019 + sa;
-                    _SELECT(se, _UPDATE_HISTORY);
-                    return false;
+                    return _SELECT(se, true), false;
+                }
+
+                if (sb.slice(-2).match(/(^|\W)'$/i)) {
+                    _AREA.value = sb.slice(0, -1) + _u2018 + sa;
+                    return _SELECT(se, true), false;
                 }
 
                 if (sb.match(/\((c|p|sm|tm|r)$/i) && sa[0] == ')') {
                     var s_ = sb.match(/\((sm|tm)$/i) ? 2 : 1;
                     _AREA.value = sb.slice(0, -(s_ + 1)) + type['(' + sb.slice(-s_).toLowerCase() + ')'] + sa.slice(1);
-                    _SELECT(se - s_, _UPDATE_HISTORY);
+                    _SELECT(se - s_, true);
                     return false;
                 }
 
@@ -1429,13 +1431,13 @@ var HTE = function(elem, o) {
 
                 if (_sb.indexOf('<<') !== -1 && _sa.indexOf('>>') === 0) {
                     _AREA.value = sb.replace(/(?:<<|&lt;&lt;)([^<]*)$/, _u00AB + '$1') + sa.replace(/^(?:>>|&gt;&gt;)/, _u00BB);
-                    _SELECT(_sb.length - 1, _UPDATE_HISTORY);
+                    _SELECT(_sb.length - 1, true);
                     return false;
                 }
 
                 if (_sb.indexOf('<') !== -1 && _sa.indexOf('>') === 0) {
                     _AREA.value = sb.replace(/(?:<|&lt;)([^<]*)$/, _u2039 + '$1') + sa.replace(/^(?:>|&gt;)/, _u203A);
-                    _SELECT(_sb.length, _UPDATE_HISTORY);
+                    _SELECT(_sb.length, true);
                     return false;
                 }
 
@@ -1444,42 +1446,48 @@ var HTE = function(elem, o) {
                 for (var i in type) {
                     if (sb.slice(-i.length) == i) {
                         _AREA.value = sb.slice(0, -i.length) + type[i] + sa;
-                        _SELECT(ss - i.length + 1, _UPDATE_HISTORY);
+                        _SELECT(ss - i.length + 1, true);
                         return false;
                     }
                 }
 
                 // `Alt + Arrow Key(s)` for creating arrows
-                if (k == 37) return _INSERT(_u2190), false;
-                if (k == 38) return _INSERT(_u2191), false;
-                if (k == 39) return _INSERT(_u2192), false;
-                if (k == 40) return _INSERT(_u2193), false;
+                if (k == 'arrowleft') return _INSERT(_u2190), false;
+                if (k == 'arrowup') return _INSERT(_u2191), false;
+                if (k == 'arrowright') return _INSERT(_u2192), false;
+                if (k == 'arrowdown') return _INSERT(_u2193), false;
+
+            }
+
+            // `Delete` was pressed
+            if (k == 'delete') {
+
+                // Remove HTML tag quickly
+                if (sa.match(/^<\/[^\n>]*?>/)) {
+                    _AREA.value = sb + sa.replace(/^<\/[^\n>]*?>/, "");
+                    return _SELECT(ss, true), false;
+                }
 
             }
 
             // `Backspace` was pressed
-            if (k == 8) {
+            if (k == 'backspace') {
 
                 // Remove indentation quickly
-                if (sb.match(new RegExp(re_TAB + '$'))) {
-                    _OUTDENT(opt.tabSize);
-                    return false;
-                }
+                if (sb.match(new RegExp('(^|\\n)(' + re_TAB + ')+$'))) return _OUTDENT(opt.tabSize), false;
 
                 // Remove HTML tag quickly
-                if (sb.match(/<\/?[^>]*?>$/)) {
-                    _OUTDENT('<\/?[^>]*?>', 1, true);
-                    return false;
-                }
+                if (sb.match(/<\/?[^\n>]*?>$/)) return _OUTDENT('<\\/?[^\\n>]*?>', true, true), false;
 
                 // Remove closing bracket and quotes quickly
                 switch (sb.slice(-1)) {
                     case '(': return _TOGGLE('(', ')'), false;
                     case '{': return _TOGGLE('{', '}'), false;
                     case '[': return _TOGGLE('[', ']'), false;
+                    case '<': return _TOGGLE('<', '>'), false;
                     case '"': return _TOGGLE('"', '"'), false;
                     case "'": return _TOGGLE("'", "'"), false;
-                    case '<': return _TOGGLE('<', '>'), false;
+                    case ' ': return _TOGGLE(' ', ' '), false; // trim white-spaces
                     case _u201C: return _TOGGLE(_u201C, _u201D), false;
                     case _u2018: return _TOGGLE(_u2018, _u2019), false;
                     case _u00AB: return _TOGGLE(_u00AB, _u00BB), false;
@@ -1490,25 +1498,11 @@ var HTE = function(elem, o) {
 
         }
 
-        // `Right Arrow` key was pressed
-        if (k == 39) {
-
-            // Jump out from the closing tag quickly
-            if (sa.match(/^<\/.*?>/)) {
-                _SELECT(se + sa.indexOf('>') + 1);
-                return false;
-            }
-
-        }
-
         // `Esc` to release focus from `<textarea>`
-        if (k == 27) {
-            release.focus();
-            return false;
-        }
+        if (k == 'escape') return release.focus(), false;
 
         if (!alt && !ctrl && !shift) {
-            win.setTimeout(_UPDATE_HISTORY, 1);
+            _TIMER(_UPDATE_HISTORY, .1);
         }
 
     });
