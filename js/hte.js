@@ -58,6 +58,7 @@ var HTE = function(elem, o) {
             tabSize: '    ',
             toolbar: true,
             shortcut: false,
+            dir: 'ltr',
             areaClass: 'editor-area',
             toolbarClass: 'editor-toolbar',
             toolbarIconClass: 'fa fa-%s',
@@ -238,10 +239,9 @@ var HTE = function(elem, o) {
     }
 
     function insert(str, s) {
-        _INSERT(str, function() {
+        return _INSERT(str, function() {
             _SELECT(s.end + 1, true);
-        });
-        return false;
+        }), false;
     }
 
     function trim(str) {
@@ -474,14 +474,14 @@ var HTE = function(elem, o) {
                 if (k == 'escape') return base.exit(true), false;
                 if (k == 'arrowup') return input.focus(), false;
                 if (k == 'arrowright') return CANCEL.focus(), false;
-                if (k == 'arrowdown' || k == 'arrowleft') return false;
+                if (k.match(/^arrow(left|down)$/)) return false;
             });
             addEvent(CANCEL, "keydown", function(e) {
                 var k = _KEY(e);
                 if (k == 'escape') return base.exit(true), false;
                 if (k == 'arrowup') return input.focus(), false;
                 if (k == 'arrowleft') return OK.focus(), false;
-                if (k == 'arrowdown' || k == 'arrowright') return false;
+                if (k.match(/^arrow(right|down)$/)) return false;
             });
             h.innerHTML = title ? title : "";
             c.appendChild(input);
@@ -557,13 +557,13 @@ var HTE = function(elem, o) {
                 var k = _KEY(e);
                 if (k == 'escape') return base.exit(true), false;
                 if (k == 'arrowright') return CANCEL.focus(), false;
-                if (k == 'arrowleft' || k == 'arrowdown') return false;
+                if (k.match(/^arrow(left|down)$/)) return false;
             });
             addEvent(CANCEL, "keydown", function(e) {
                 var k = _KEY(e);
                 if (k == 'escape') return base.exit(true), false;
                 if (k == 'arrowleft') return OK.focus(), false;
-                if (k == 'arrowright' || k == 'arrowdown') return false;
+                if (k.match(/^arrow(right|down)$/)) return false;
             });
             h.innerHTML = title ? title : "";
             c.innerHTML = message ? message : "";
@@ -663,6 +663,7 @@ var HTE = function(elem, o) {
         if (!is_object(data.title)) data.title = [data.title];
         var btn = doc.createElement('a'), pos;
             btn.className = opt.toolbarButtonClass.replace(/%s/g, key);
+            btn.setAttribute('dir', data.dir || opt.dir);
             btn.setAttribute('tabindex', -1);
             btn.href = '#' + key.replace(' ', ':').replace(/[^a-z0-9\:]/gi, '-').replace(/-+/g,'-').replace(/^-|-$/g, "");
             btn.innerHTML = data.text ? data.text.replace(/%s/g, key) : '<i class="' + opt.toolbarIconClass.replace(/%s/g, key) + '"></i>';
@@ -682,10 +683,7 @@ var HTE = function(elem, o) {
             if (is_function(data.click)) {
                 var hash = this.hash.replace('#', "");
                 button = btn;
-                data.click(e, base);
-                opt.click(e, base, hash);
-                opt.update(e, base, hash);
-                return false;
+                return data.click(e, base), opt.click(e, base, hash), opt.update(e, base, hash), false;
             }
         });
         addEvent(btn, "keydown", function(e) {
@@ -1151,23 +1149,24 @@ var HTE = function(elem, o) {
             if (valid === shc.length) return base.shortcuts[i](e, base);
         }
 
-        var b = sb, a = sa[0], esc = b.slice(-1) == '\\', kk = k == a;
+        var b = sb, a = sa[0], esc = b.slice(-1) == '\\';
 
         if (opt.autoComplete && !esc) {
 
             // Disable the end bracket key if character before
             // cursor is match with character after cursor
             if (
-                b.indexOf('(') !== -1 && a == ')' && kk ||
-                b.indexOf('{') !== -1 && a == '}' && kk ||
-                b.indexOf('[') !== -1 && a == ']' && kk ||
-                b.indexOf('<') !== -1 && a == '>' && kk ||
-                b.indexOf('"') !== -1 && a == '"' && kk ||
-                b.indexOf("'") !== -1 && a == "'" && kk ||
-                b.indexOf('`') !== -1 && a == '`' && kk
+                k == a && (
+                    b.indexOf('(') !== -1 && a == ')' ||
+                    b.indexOf('{') !== -1 && a == '}' ||
+                    b.indexOf('[') !== -1 && a == ']' ||
+                    b.indexOf('<') !== -1 && a == '>' ||
+                    b.indexOf('"') !== -1 && a == '"' ||
+                    b.indexOf("'") !== -1 && a == "'" ||
+                    b.indexOf('`') !== -1 && a == '`'
+                )
             ) {
-                _SELECT(se + 1); // move caret by 1 character to the right
-                return false;
+                return _SELECT(se + 1), false; // move caret by 1 character to the right
             }
 
             // Auto close for `(`
@@ -1191,34 +1190,29 @@ var HTE = function(elem, o) {
                 if (k == "'") return insert("'" + sv + "'", s);
 
                 // Auto close for ```
-                if (k == '`' && !sb.match(/\w$/)) return insert('`' + sv + '`', s);
+                if (k == '`') return insert('`' + sv + '`', s);
 
             }
 
         }
 
         // `Shift + Tab` to "outdent"
-        if (shift && tab) {
-            _OUTDENT(opt.tabSize);
-            return false;
-        }
+        if (shift && tab) return _OUTDENT(opt.tabSize), false;
 
         if (tab) {
             // Auto close for HTML tags
             // Case `<div|>`
             if (sb.match(/<[^\/>]*?$/) && sa[0] == '>') {
                 var match = /<([^\/>]*?)$/.exec(sb), m1 = match[1].split(' ')[0];
-                if (m1.match(/^hr|img|link|meta$/)) {
+                if (m1.match(/^br|hr|img|input|link|meta$/)) {
                     _AREA.value = sb + ' ' + opt.emptyElementSuffix + sa.substring(1);
                 } else {
                     _AREA.value = sb + ' ></' + m1 + sa;
                 }
-                _SELECT(ss + 1, true);
-                return false;
+                return _SELECT(ss + 1, true), false;
             }
             // `Tab` to "indent"
-            _INDENT(opt.tabSize);
-            return false;
+            return _INDENT(opt.tabSize), false;
         }
 
         // `Ctrl + Z` to "undo"
@@ -1294,19 +1288,15 @@ var HTE = function(elem, o) {
                 // Case `<li>List Item</li>|`
                 if (sb.match(new RegExp('<\\/' + re_LI_ + '>$'))) {
                     var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*?<\\/' + re_LI_ + '>$').exec(sb);
-                    _INSERT('\n' + match[1] + '<' + li_ + match[2] + '</' + li_ + '>', function() {
+                    return _INSERT('\n' + match[1] + '<' + li_ + match[2] + '</' + li_ + '>', function() {
                         _SELECT(se + (match[1] + match[2]).length + 4, true);
-                    });
-                    base.scroll();
-                    return false;
+                    }), base.scroll(), false;
                 }
 
                 // Case `<li>List Item|</li>`
                 if (sa.match(new RegExp('^<\\/' + re_LI_ + '>')) && sb.slice(-1) != '>') {
                     var match = new RegExp('(?:^|\\n)([\\t ]*)<' + re_LI_ + '(>| .*?>).*$').exec(sb);
-                    _INSERT('</' + li_ + '>\n' + match[1] + '<' + li_ + match[2]);
-                    base.scroll();
-                    return false;
+                    return _INSERT('</' + li_ + '>\n' + match[1] + '<' + li_ + match[2]), base.scroll(), false;
                 }
 
                 var p_ = opt.P.split(' ')[0],
@@ -1315,9 +1305,7 @@ var HTE = function(elem, o) {
                 // Case `|</p>`
                 if (sa.match(new RegExp('^<\\/' + re_P_ + '>'))) {
                     var match = new RegExp('(?:^|\\n?)([\\t ]*)<' + re_P_ + '(>| .*?>).*$').exec(sb);
-                    _INSERT('</' + p_ + '>\n' + match[1] + '<' + p_ + match[2]);
-                    base.scroll();
-                    return false;
+                    return _INSERT('</' + p_ + '>\n' + match[1] + '<' + p_ + match[2]), base.scroll(), false;
                 }
 
             }
@@ -1327,16 +1315,12 @@ var HTE = function(elem, o) {
                 var indent_B = (new RegExp('(?:^|\\n)((' + re_TAB + ')+)(.*?)$')).exec(sb),
                     indent = indent_B ? indent_B[1] : "";
                 if (sb.match(/[\(\{\[]$/) && sa.match(/^[\]\}\)]/) || sb.match(/<[^\/]*?>$/) && sa.match(/^<\//)) {
-                    _INSERT('\n' + indent + re_TAB + '\n' + indent, function() {
+                    return _INSERT('\n' + indent + re_TAB + '\n' + indent, function() {
                         _SELECT(ss + (indent + opt.tabSize).length + 1, true);
-                    });
-                    base.scroll();
-                    return false;
+                    }), base.scroll(), false;
                 }
                 if (sb.match(new RegExp(re_TAB + '$'))) {
-                    _INSERT('\n' + indent);
-                    base.scroll();
-                    return false;
+                    return _INSERT('\n' + indent), base.scroll(), false;
                 }
             }
 
@@ -1376,6 +1360,8 @@ var HTE = function(elem, o) {
             '>=': _u2265,
             '!=': _u2260,
             'No.': _u2116,
+            'NO.': _u2116,
+            'no.': _u2116,
             '.': _u00B7
         };
 
@@ -1390,8 +1376,7 @@ var HTE = function(elem, o) {
                 for (var i in type) {
                     _REPLACE(new RegExp(escape(i), 'g'), type[i], noop);
                 }
-                _UPDATE_HISTORY();
-                return false;
+                return _UPDATE_HISTORY(), false;
 
             }
 
@@ -1422,8 +1407,7 @@ var HTE = function(elem, o) {
                 if (sb.match(/\((c|p|sm|tm|r)$/i) && sa[0] == ')') {
                     var s_ = sb.match(/\((sm|tm)$/i) ? 2 : 1;
                     _AREA.value = sb.slice(0, -(s_ + 1)) + type['(' + sb.slice(-s_).toLowerCase() + ')'] + sa.slice(1);
-                    _SELECT(se - s_, true);
-                    return false;
+                    return _SELECT(se - s_, true), false;
                 }
 
                 var _sb = sb.replace(/&lt;/g, '<').replace(/&gt;/g, '>'),
@@ -1431,14 +1415,12 @@ var HTE = function(elem, o) {
 
                 if (_sb.indexOf('<<') !== -1 && _sa.indexOf('>>') === 0) {
                     _AREA.value = sb.replace(/(?:<<|&lt;&lt;)([^<]*)$/, _u00AB + '$1') + sa.replace(/^(?:>>|&gt;&gt;)/, _u00BB);
-                    _SELECT(_sb.length - 1, true);
-                    return false;
+                    return _SELECT(_sb.length - 1, true), false;
                 }
 
                 if (_sb.indexOf('<') !== -1 && _sa.indexOf('>') === 0) {
                     _AREA.value = sb.replace(/(?:<|&lt;)([^<]*)$/, _u2039 + '$1') + sa.replace(/^(?:>|&gt;)/, _u203A);
-                    _SELECT(_sb.length, true);
-                    return false;
+                    return _SELECT(_sb.length, true), false;
                 }
 
                 // Convert some combination of printable characters
@@ -1446,8 +1428,7 @@ var HTE = function(elem, o) {
                 for (var i in type) {
                     if (sb.slice(-i.length) == i) {
                         _AREA.value = sb.slice(0, -i.length) + type[i] + sa;
-                        _SELECT(ss - i.length + 1, true);
-                        return false;
+                        return _SELECT(ss - i.length + 1, true), false;
                     }
                 }
 
@@ -1501,7 +1482,7 @@ var HTE = function(elem, o) {
         // `Esc` to release focus from `<textarea>`
         if (k == 'escape') return release.focus(), false;
 
-        if (!alt && !ctrl && !shift) {
+        if (!ctrl && !shift && !alt) {
             _TIMER(_UPDATE_HISTORY, .1);
         }
 
