@@ -1,6 +1,6 @@
 /*!
  * ----------------------------------------------------------
- *  HTML TEXT EDITOR PLUGIN 1.5.0
+ *  HTML TEXT EDITOR PLUGIN 1.5.1
  * ----------------------------------------------------------
  * Author: Taufik Nurrohman <http://latitudu.com>
  * Licensed under the MIT license.
@@ -269,7 +269,7 @@ var HTE = function(elem, o) {
 
     // Configuration (original)
     // @see `base.grip.config`
-    base.config = opt;
+    base.config = JSON.parse(JSON.stringify(opt));
 
     // DOM Accessor
     base.DOM = {
