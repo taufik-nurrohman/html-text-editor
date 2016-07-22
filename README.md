@@ -8,7 +8,9 @@ As mentioned in the title above.
 Demo
 ----
 
-&rarr; http://rawgit.com/tovic/html-text-editor/master/index.html
+![html-text-editor](https://f.cloud.github.com/assets/1669261/2492943/8db3fa4e-b26a-11e3-8d5e-823c8d594b64.png)
+
+→ https://rawgit.com/tovic/html-text-editor/master/index.html
 
 Basic Usage
 -----------
@@ -16,8 +18,8 @@ Basic Usage
 Put icon fonts and CSS files in the `<head>`:
 
 ~~~ .html
-<link href="css/font-awesome.css" rel="stylesheet">
-<link href="css/style.css" rel="stylesheet">
+<link href="css/font-awesome.min.css" rel="stylesheet">
+<link href="css/hte.min.css" rel="stylesheet">
 ~~~
 
 Create a `<textarea>` element in the body:
